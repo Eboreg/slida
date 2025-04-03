@@ -1,41 +1,36 @@
 from PySide6.QtCore import (
     Property,
-    QAbstractAnimation,
     QEasingCurve,
-    QParallelAnimationGroup,
+    QPoint,
     QPropertyAnimation,
     Qt,
-    Slot,
-    QPoint
 )
-from PySide6.QtGui import QPainter, QLinearGradient, QGradient, QPalette
+from PySide6.QtGui import QGradient, QLinearGradient, QPainter
 from PySide6.QtWidgets import (
     QGraphicsBlurEffect,
-    QGraphicsScene,
+    QGraphicsOpacityEffect,
     QGraphicsView,
     QGraphicsWidget,
     QWidget,
-    QGraphicsOpacityEffect,
 )
 
-from pyside.animation import Transition, TransitionPair
-from pyside.pixmaplist import PixmapList
-from pyside.utils import coerce_between
+from slideshow.pixmaplist import PixmapList
+from slideshow.transitions import Transition
+from slideshow.utils import coerce_between
 
 
 class AnimPixmapsWidget(QGraphicsWidget):
     animation: QPropertyAnimation
     pixmaps: PixmapList | None = None
-    duration = 600
     _blur: float = 0.0
     _marquee: float = 1.0
     _noop: float = 0.0
 
-    def __init__(self, view: QGraphicsView, **kwargs):
+    def __init__(self, view: QGraphicsView, transition_duration: int = 600, **kwargs):
         super().__init__(**kwargs)
         self.setAutoFillBackground(True)
         self.animation = QPropertyAnimation(parent=view, targetObject=self)
-        self.animation.setDuration(self.duration)
+        self.animation.setDuration(transition_duration)
         self.animation.setEasingCurve(QEasingCurve.Type.InOutSine)
 
     @Property(float)
@@ -96,7 +91,6 @@ class AnimPixmapsWidget(QGraphicsWidget):
             images = self.pixmaps.get_fitting_images()
             rect = images.get_rect(self.size())
             left = rect.left()
-            # painter.setBackground(Qt.GlobalColor.black)
 
             for pixmap in images.get_scaled_pixmaps(self.size()):
                 painter.drawPixmap(left, rect.top(), pixmap)
@@ -115,82 +109,14 @@ class AnimPixmapsWidget(QGraphicsWidget):
         self.setTransformOriginPoint(size.width() / 2, size.height() / 2)
         super().resizeEvent(event)
 
+    def set_pixmaps(self, pixmaps: PixmapList):
+        self.pixmaps = pixmaps
+
+    def set_transition_duration(self, value: int):
+        self.animation.setDuration(value)
+
     def update_animation(self, transition: Transition):
         self.animation.setPropertyName(transition.property_name.encode())
         self.animation.setStartValue(transition.get_start_value())
         self.animation.setEndValue(transition.get_end_value())
         self.setProperty(transition.property_name, transition.get_start_value())
-
-    def set_pixmaps(self, pixmaps: PixmapList):
-        self.pixmaps = pixmaps
-
-
-class AnimPixmapsView(QGraphicsView):
-    current_widget: AnimPixmapsWidget
-    next_widget: AnimPixmapsWidget
-    animation_group: QParallelAnimationGroup
-
-    def __init__(self):
-        super().__init__()
-
-        scene = QGraphicsScene(self)
-
-        self.setScene(scene)
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.setBackgroundRole(QPalette.ColorRole.NoRole)
-
-        self.current_widget = AnimPixmapsWidget(view=self)
-        scene.addItem(self.current_widget)
-        self.current_widget.setZValue(1.0)
-
-        self.next_widget = AnimPixmapsWidget(view=self)
-        scene.addItem(self.next_widget)
-        self.next_widget.setZValue(0.0)
-
-        self.animation_group = QParallelAnimationGroup(self)
-        self.animation_group.addAnimation(self.current_widget.animation)
-        self.animation_group.addAnimation(self.next_widget.animation)
-        self.animation_group.finished.connect(self.on_transition_finished)
-
-    def is_transitioning(self):
-        return self.animation_group.state() != QAbstractAnimation.State.Stopped
-
-    @Slot()
-    def on_transition_finished(self):
-        old_current = self.current_widget
-        self.current_widget = self.next_widget
-        self.next_widget = old_current
-
-        self.next_widget.setVisible(False)
-        self.next_widget.reset_transition_properties()
-        self.current_widget.reset_transition_properties()
-        self.current_widget.setZValue(1.0)
-        self.next_widget.setZValue(0.0)
-
-    def resizeEvent(self, event):
-        viewport_rect = self.viewport().rect()
-        geometry = self.geometry()
-
-        self.scene().setSceneRect(viewport_rect)
-        self.current_widget.setGeometry(geometry)
-        self.next_widget.setGeometry(geometry)
-        super().resizeEvent(event)
-
-    def set_current_pixmaps(self, pixmaps: PixmapList):
-        self.current_widget.set_pixmaps(pixmaps)
-        self.scene().update(self.sceneRect())
-
-    def transition_to(self, pixmaps: PixmapList, transitions_class: type[TransitionPair]):
-        transitions = transitions_class(self)
-
-        if transitions.exit:
-            self.current_widget.update_animation(transitions.exit)
-        if transitions.enter:
-            self.next_widget.update_animation(transitions.enter)
-        self.next_widget.setVisible(True)
-
-        self.next_widget.set_pixmaps(pixmaps)
-        self.scene().update(self.sceneRect())
-
-        self.animation_group.start()

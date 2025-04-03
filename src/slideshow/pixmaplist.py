@@ -1,8 +1,8 @@
 from PySide6.QtCore import QSize
 from PySide6.QtGui import QPixmap
 
-from pyside.qimage import QImage
-from pyside.qimages import QImages
+from slideshow.qimage import QImage
+from slideshow.qimages import QImages
 
 
 class PixmapList:

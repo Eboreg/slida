@@ -3,7 +3,7 @@ build-backend = "setuptools.build_meta"
 requires = ["setuptools"]
 
 [project]
-name = "pyside"
+name = "slideshow"
 authors = [
     {name = "Robert Huselius", email = "robert@huseli.us"},
 ]
@@ -26,7 +26,7 @@ dev = [
 ]
 
 [project.scripts]
-slideshow = "pyside.slideshow:main"
+slideshow = "slideshow.application:main"
 
 [tool.setuptools.dynamic]
 version = {attr = "__version__"}

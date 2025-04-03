@@ -4,8 +4,9 @@ from typing import Generator
 
 
 class DirScanner:
-    def __init__(self, root_path: str):
+    def __init__(self, root_path: str, recursive: bool = False):
         self.root_path = root_path
+        self.recursive = recursive
         self.visited_inodes = []
 
     def scan(self, path: str | None = None) -> "Generator[str]":
@@ -15,7 +16,7 @@ class DirScanner:
             if inode in self.visited_inodes:
                 continue
             self.visited_inodes.append(inode)
-            if entry.is_dir():
+            if entry.is_dir() and self.recursive:
                 yield from self.scan(entry.path)
             elif entry.is_file():
                 mimetype = mimetypes.guess_type(entry.path)

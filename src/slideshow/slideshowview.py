@@ -1,53 +1,58 @@
 import random
-import sys
 from pathlib import Path
 
-from PIL import Image
 from PySide6.QtCore import QSize, Qt, QTimer, Slot
 from PySide6.QtGui import QKeyEvent, QMouseEvent, QPixmap, QResizeEvent
-from PySide6.QtWidgets import QApplication, QGraphicsScene, QGraphicsView
+from PySide6.QtWidgets import QGraphicsScene, QGraphicsView
 
-from pyside.animation import TRANSITION_PAIR_CLASSES
-from pyside.dirscanner import DirScanner
-from pyside.pixmaplist import PixmapList
-from pyside.pixmapswidget import AnimPixmapsView
-from pyside.toast import Toast
-
-
-def is_portrait(file: Path | str) -> bool:
-    with Image.open(file) as image:
-        return image.width / image.height < 0.9
+from slideshow.animpixmapsview import AnimPixmapsView
+from slideshow.dirscanner import DirScanner
+from slideshow.pixmaplist import PixmapList
+from slideshow.toast import Toast
+from slideshow.transitions import TRANSITION_PAIR_CLASSES
+from slideshow.utils import is_portrait
 
 
-class Slideshow(QGraphicsView):
+class SlideshowView(QGraphicsView):
     files: set[str]
     initial_files: set[str]
     history: list[PixmapList]
-    _history_idx: float = 0.0
-    interval: int = 20_000
+    history_idx: int = 0
     pixmaps_view: AnimPixmapsView
+    interval: int
+    real_interval: int
+    transition_duration: int
+    timer_explicitly_stopped: bool = False
 
-    def __init__(self, path: str | Path):
+    def __init__(
+        self,
+        path: str | Path,
+        recursive: bool = False,
+        interval: int = 20_000,
+        transition_duration: int = 600
+    ):
         super().__init__()
-        self.init_files(str(path))
+        self.init_files(str(path), recursive=recursive)
+        self.transition_duration = transition_duration
+        self.interval = interval
         self.history = []
 
         self.toast = Toast(self)
+        self.pixmaps_view = AnimPixmapsView(transition_duration=self.transition_duration)
 
         self.setScene(QGraphicsScene(self))
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
+        self.scene().addWidget(self.pixmaps_view)
         self.draw()
 
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.on_timeout)
-        self.timer.start(self.interval)
+        self.set_durations(interval, transition_duration)
 
-    def get_pixmaps(self, history_idx: int) -> PixmapList:
-        while len(self.history) <= history_idx:
-            self.history.append(PixmapList(self.size()))
-        return self.history[history_idx]
+    def draw(self):
+        self.pixmaps_view.set_current_pixmaps(self.setup_pixmaps(self.history_idx))
 
     def get_next_pixmap(self, landscape_ok: bool = True, reinited: bool = False) -> QPixmap | None:
         for file in self.files:
@@ -62,8 +67,13 @@ class Slideshow(QGraphicsView):
 
         return None
 
-    def init_files(self, root_path: str):
-        scanner = DirScanner(root_path)
+    def get_pixmaps(self, history_idx: int) -> PixmapList:
+        while len(self.history) <= history_idx:
+            self.history.append(PixmapList(self.size()))
+        return self.history[history_idx]
+
+    def init_files(self, root_path: str, recursive: bool = False):
+        scanner = DirScanner(root_path, recursive=recursive)
         entries = list(scanner.scan())
         random.shuffle(entries)
         self.initial_files = set(entries)
@@ -83,9 +93,11 @@ class Slideshow(QGraphicsView):
             elif combo.key() == Qt.Key.Key_S:
                 self.toast.setText("blajja")
                 if self.timer.isActive():
+                    self.timer_explicitly_stopped = True
                     self.timer.stop()
                 else:
-                    self.timer.start(self.interval)
+                    self.timer_explicitly_stopped = False
+                    self.timer.start()
 
     def mouseReleaseEvent(self, event: QMouseEvent):
         if event.button() == Qt.MouseButton.LeftButton:
@@ -93,14 +105,42 @@ class Slideshow(QGraphicsView):
         elif event.button() == Qt.MouseButton.RightButton:
             self.move(-1, True)
 
+    def move(self, delta: int, restart_timer: bool = False):
+        history_idx = self.history_idx + delta
+
+        if history_idx >= 0 and not self.pixmaps_view.is_transitioning():
+            self.history_idx = history_idx
+            pixmaps = self.setup_pixmaps(history_idx)
+            self.pixmaps_view.transition_to(pixmaps, random.choice(TRANSITION_PAIR_CLASSES))
+
+            if restart_timer and self.timer.isActive():
+                self.timer.start()
+
     @Slot()
     def on_timeout(self):
-        self.history = self.history[:int(self._history_idx) + 1]
+        self.history = self.history[:self.history_idx + 1]
         self.move(1)
 
     def resizeEvent(self, event: QResizeEvent):
+        rect = self.viewport().rect()
+        self.scene().setSceneRect(rect)
+        self.pixmaps_view.setFixedSize(rect.size())
+        self.toast.setFixedWidth(rect.width())
         self.draw()
         super().resizeEvent(event)
+
+    def set_durations(self, interval: int, transition: int):
+        self.interval = interval
+        self.transition_duration = transition
+        self.real_interval = max(interval - transition, 0)
+        self.pixmaps_view.set_transition_duration(transition)
+
+        if interval > 0:
+            self.timer.setInterval(self.real_interval)
+            if not self.timer.isActive() and not self.timer_explicitly_stopped:
+                self.timer.start()
+        else:
+            self.timer.stop()
 
     def setup_pixmaps(self, history_idx: int) -> PixmapList:
         pixmaps = self.get_pixmaps(history_idx)
@@ -115,40 +155,5 @@ class Slideshow(QGraphicsView):
 
         return pixmaps
 
-    def draw(self):
-        self.scene().setSceneRect(self.viewport().rect())
-        self.scene().clear()
-
-        history_idx = int(self._history_idx)
-
-        self.pixmaps_view = AnimPixmapsView()
-        self.pixmaps_view.setMinimumSize(self.size())
-        self.scene().addWidget(self.pixmaps_view)
-        self.pixmaps_view.set_current_pixmaps(self.setup_pixmaps(history_idx))
-
     def sizeHint(self):
         return QSize(800, 600)
-
-    def move(self, delta: int, restart_timer: bool = False):
-        history_idx = int(self._history_idx) + delta
-
-        if history_idx >= 0 and not self.pixmaps_view.is_transitioning():
-            self._history_idx = history_idx
-            pixmaps = self.setup_pixmaps(history_idx)
-            self.pixmaps_view.transition_to(pixmaps, random.choice(TRANSITION_PAIR_CLASSES))
-
-            if restart_timer and self.timer.isActive():
-                self.timer.start(self.interval)
-
-
-def main():
-    # topdir = Path("/home/klaatu/.private/Favoriter")
-    topdir = Path("/home/klaatu/.private/Favoriter/collage")
-    app = QApplication([])
-    slida = Slideshow(topdir)
-    slida.show()
-    sys.exit(app.exec())
-
-
-if __name__ == "__main__":
-    main()

@@ -1,7 +1,7 @@
 from PySide6.QtCore import QPoint, QRect, QSize
 from PySide6.QtGui import QPixmap
 
-from pyside.qimage import QImage
+from slideshow.qimage import QImage
 
 
 class QImages:
