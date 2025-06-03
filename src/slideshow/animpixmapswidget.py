@@ -3,6 +3,7 @@ from PySide6.QtCore import (
     QEasingCurve,
     QPoint,
     QPropertyAnimation,
+    QSize,
     Qt,
 )
 from PySide6.QtGui import QGradient, QLinearGradient, QPainter
@@ -26,15 +27,15 @@ class AnimPixmapsWidget(QGraphicsWidget):
     _marquee: float = 1.0
     _noop: float = 0.0
 
-    def __init__(self, view: QGraphicsView, transition_duration: int = 600, **kwargs):
+    def __init__(self, view: QGraphicsView, transition_duration: float = 0.5, **kwargs):
         super().__init__(**kwargs)
         self.setAutoFillBackground(True)
         self.animation = QPropertyAnimation(parent=view, targetObject=self)
-        self.animation.setDuration(transition_duration)
+        self.animation.setDuration(int(transition_duration * 1000))
         self.animation.setEasingCurve(QEasingCurve.Type.InOutSine)
 
-    @Property(float)
-    def blur(self):  # pylint: disable=method-hidden
+    @Property(float) # type: ignore
+    def blur(self):  # type: ignore # pylint: disable=method-hidden
         return self._blur
 
     @blur.setter
@@ -52,8 +53,8 @@ class AnimPixmapsWidget(QGraphicsWidget):
         else:
             effect.setEnabled(False)
 
-    @Property(float)
-    def marquee(self):  # pylint: disable=method-hidden
+    @Property(float) # type: ignore
+    def marquee(self):  # type: ignore # pylint: disable=method-hidden
         return self._marquee
 
     @marquee.setter
@@ -78,31 +79,35 @@ class AnimPixmapsWidget(QGraphicsWidget):
         else:
             effect.setEnabled(False)
 
-    @Property(float)
-    def noop(self):
+    @Property(float) # type: ignore
+    def noop(self): # type: ignore
         return self._noop
 
     @noop.setter
     def noop(self, value: float):
         self._noop = value
 
-    def paint(self, painter: QPainter, option, widget: QWidget | None):
+    def paint(self, painter: QPainter, option, widget: QWidget | None = None):
         if self.pixmaps:
             images = self.pixmaps.get_fitting_images()
-            rect = images.get_rect(self.size())
+            rect = images.get_rect(self.qsize())
             left = rect.left()
 
-            for pixmap in images.get_scaled_pixmaps(self.size()):
+            for pixmap in images.get_scaled_pixmaps(self.qsize()):
                 painter.drawPixmap(left, rect.top(), pixmap)
                 left += pixmap.width()
+
+    def qsize(self) -> QSize:
+        qsizef = self.size()
+        return QSize(int(qsizef.width()), int(qsizef.height()))
 
     def reset_transition_properties(self):
         self.setX(0.0)
         self.setY(0.0)
         self.setScale(1.0)
         self.setOpacity(1.0)
-        self.blur = 0.0
-        self.marquee = 1.0
+        self.blur = 0.0 # type: ignore
+        self.marquee = 1.0 # type: ignore
 
     def resizeEvent(self, event):
         size = self.size()
@@ -112,8 +117,8 @@ class AnimPixmapsWidget(QGraphicsWidget):
     def set_pixmaps(self, pixmaps: PixmapList):
         self.pixmaps = pixmaps
 
-    def set_transition_duration(self, value: int):
-        self.animation.setDuration(value)
+    def set_transition_duration(self, value: float):
+        self.animation.setDuration(int(value * 1000))
 
     def update_animation(self, transition: Transition):
         self.animation.setPropertyName(transition.property_name.encode())

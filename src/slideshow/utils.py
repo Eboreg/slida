@@ -3,9 +3,9 @@ from pathlib import Path
 from PIL import Image
 
 
-def is_portrait(file: Path | str) -> bool:
+def image_ratio(file: Path | str) -> float:
     with Image.open(file) as image:
-        return image.width / image.height < 0.9
+        return image.width / image.height
 
 
 def coerce_between(value: float, min_value: float, max_value: float) -> float:

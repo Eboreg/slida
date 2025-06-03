@@ -17,7 +17,7 @@ class AnimPixmapsView(QGraphicsView):
     next_widget: AnimPixmapsWidget
     animation_group: QParallelAnimationGroup
 
-    def __init__(self, transition_duration: int = 600):
+    def __init__(self, transition_duration: float = 0.5):
         super().__init__()
 
         scene = QGraphicsScene(self)
@@ -40,7 +40,7 @@ class AnimPixmapsView(QGraphicsView):
         self.animation_group.addAnimation(self.next_widget.animation)
         self.animation_group.finished.connect(self.on_transition_finished)
 
-    def is_transitioning(self):
+    def is_transitioning(self) -> bool:
         return self.animation_group.state() != QAbstractAnimation.State.Stopped
 
     @Slot()
@@ -68,7 +68,7 @@ class AnimPixmapsView(QGraphicsView):
         self.current_widget.set_pixmaps(pixmaps)
         self.scene().update(self.sceneRect())
 
-    def set_transition_duration(self, value: int):
+    def set_transition_duration(self, value: float):
         self.current_widget.set_transition_duration(value)
         self.next_widget.set_transition_duration(value)
 

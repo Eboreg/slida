@@ -1,3 +1,4 @@
+from typing import Self
 from PySide6.QtCore import QPoint, QRect, QSize
 from PySide6.QtGui import QPixmap
 
@@ -14,19 +15,19 @@ class QImages:
         return self.images.__iter__()
 
     @property
-    def aspect_ratio(self):
+    def aspect_ratio(self) -> float:
         return sum(i.aspect_ratio for i in self.images)
 
-    def add(self, image: QImage):
+    def add(self, image: QImage) -> Self:
         self.images.append(image)
         return self
 
-    def copy(self):
+    def copy(self) -> "QImages":
         return QImages(self.images.copy())
 
-    def get_empty_area(self, bounds: QSize):
-        size = self.get_size(bounds)
-        return (bounds.width() * bounds.height()) - (size.width() * size.height())
+    def get_empty_area(self, bounds: QSize) -> int:
+        width, height = self.get_size(bounds)
+        return (bounds.width() * bounds.height()) - (width * height)
 
     def get_height(self, bounds: QSize) -> int:
         max_height = bounds.height()
@@ -39,11 +40,11 @@ class QImages:
 
         return max_height
 
-    def get_rect(self, bounds: QSize):
-        size = self.get_size(bounds)
-        left = int((bounds.width() - size.width()) / 2)
-        top = int((bounds.height() - size.height()) / 2)
-        return QRect(QPoint(left, top), size)
+    def get_rect(self, bounds: QSize) -> QRect:
+        width, height = self.get_size(bounds)
+        left = int((bounds.width() - width) / 2)
+        top = int((bounds.height() - height) / 2)
+        return QRect(QPoint(left, top), QPoint(width, height))
 
     def get_scaled_pixmaps(self, bounds: QSize) -> list[QPixmap]:
         pixmaps = []
@@ -54,10 +55,10 @@ class QImages:
 
         return pixmaps
 
-    def get_scaled_width(self, height: int):
+    def get_scaled_width(self, height: int) -> int:
         return sum(i.get_scaled_width(height) for i in self.images)
 
-    def get_size(self, bounds: QSize):
+    def get_size(self, bounds: QSize) -> tuple[int, int]:
         height = self.get_height(bounds)
         width = self.get_scaled_width(height)
-        return QSize(width, height)
+        return width, height
