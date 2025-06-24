@@ -214,7 +214,7 @@ class SlideshowView(QGraphicsView):
             self.pixmaps_view.transition_to(pixmaps, random.choice(TRANSITION_PAIR_CLASSES))
 
             if restart_timer and self.timer.isActive():
-                self.timer.start()
+                self.timer.start(self.real_interval_ms)
 
     @Slot()
     def on_timeout(self):
