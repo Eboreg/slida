@@ -1,5 +1,4 @@
 import random
-from pathlib import Path
 
 from PySide6.QtCore import QProcess, QSize, Qt, QTimer, Slot
 from PySide6.QtGui import (
@@ -10,13 +9,13 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import QGraphicsScene, QGraphicsView, QMenu
 
-from slideshow.animpixmapsview import AnimPixmapsView
-from slideshow.dirscanner import DirScanner, FileOrder
-from slideshow.pixmaplist import PixmapList
-from slideshow.qimage import QImage
-from slideshow.toast import Toast
-from slideshow.transitions import TRANSITION_PAIR_CLASSES
-from slideshow.utils import image_ratio
+from slida.animpixmapsview import AnimPixmapsView
+from slida.dirscanner import DirScanner, FileOrder
+from slida.pixmaplist import PixmapList
+from slida.qimage import QImage
+from slida.toast import Toast
+from slida.transitions import TRANSITION_PAIR_CLASSES
+from slida.utils import image_ratio
 
 
 class HistoryEntry:
@@ -38,7 +37,7 @@ class SlideshowView(QGraphicsView):
 
     def __init__(
         self,
-        path: str | Path,
+        path: str | list[str],
         recursive: bool = False,
         interval: int = 20,
         transition_duration: float = 0.5,
@@ -47,7 +46,11 @@ class SlideshowView(QGraphicsView):
         disable_timer: bool = False,
     ):
         super().__init__()
-        self.__init_files(str(path), recursive=recursive, order=order, reverse=reverse)
+
+        entries = DirScanner(path, recursive=recursive).list(order=order, reverse=reverse)
+        self.initial_files = entries
+        self.files = entries.copy()
+
         self.transition_duration = transition_duration
         self.interval = interval
         self.disable_timer = disable_timer
@@ -91,20 +94,23 @@ class SlideshowView(QGraphicsView):
     def contextMenuEvent(self, event: QContextMenuEvent):
         menu = QMenu(self)
         timer_was_active = self.pause_slideshow()
+        entry = self.__get_history_entry(self.history_idx)
 
         def on_hide():
             if timer_was_active:
                 self.unpause_slideshow()
 
-        menu.addAction("Previous", lambda: self.move_by(-1))
+        if self.history_idx > 0:
+            menu.addAction("Previous", lambda: self.move_by(-1))
         if timer_was_active:
             menu.addAction("Stop slideshow", lambda: self.pause_slideshow(True))
         else:
             menu.addAction("Start slideshow", lambda: self.unpause_slideshow(True))
+        menu.addAction("Exit", self.close)
 
         menu.addSeparator()
 
-        for path in self.__get_current_filenames():
+        for path in entry.files:
             if "/" not in path:
                 path = f"./{path}"
             directory, basename = path.rsplit("/", 1)
@@ -217,10 +223,6 @@ class SlideshowView(QGraphicsView):
             if show_toast:
                 self.show_toast("Slideshow started")
 
-    def __get_current_filenames(self) -> list[str]:
-        entry = self.__get_history_entry(self.history_idx)
-        return entry.files
-
     def __get_history_entry(self, history_idx: int) -> HistoryEntry:
         while len(self.history) <= history_idx:
             self.history.append(HistoryEntry())
@@ -237,18 +239,6 @@ class SlideshowView(QGraphicsView):
             return self.__get_next_image(max_ratio=max_ratio, reinited=True)
 
         return None
-
-    def __init_files(
-        self,
-        root_path: str,
-        recursive: bool = False,
-        order: FileOrder = FileOrder.NAME,
-        reverse: bool = False,
-    ):
-        scanner = DirScanner(root_path, recursive=recursive)
-        entries = scanner.list(order=order, reverse=reverse)
-        self.initial_files = entries
-        self.files = self.initial_files.copy()
 
     @Slot()
     def __on_debug_timeout(self):

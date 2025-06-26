@@ -1,7 +1,7 @@
 from PySide6.QtCore import QSize
 
-from slideshow.qimage import QImage
-from slideshow.qimages import QImages
+from slida.qimage import QImage
+from slida.qimages import QImages
 
 
 class PixmapList:

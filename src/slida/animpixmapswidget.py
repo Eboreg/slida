@@ -15,9 +15,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from slideshow.pixmaplist import PixmapList
-from slideshow.transitions import Transition
-from slideshow.utils import coerce_between
+from slida.pixmaplist import PixmapList
+from slida.transitions import Transition
+from slida.utils import coerce_between
 
 
 class AnimPixmapsWidget(QGraphicsWidget):
