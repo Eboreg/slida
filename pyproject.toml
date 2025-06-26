@@ -14,7 +14,7 @@ dependencies = [
     "PySide6",
     "pillow",
 ]
-dynamic = ["version"]
+version = "0.1.1"
 
 [project.optional-dependencies]
 dev = [
@@ -27,9 +27,6 @@ dev = [
 
 [project.scripts]
 slideshow = "slideshow.application:main"
-
-[tool.setuptools.dynamic]
-version = {attr = "__version__"}
 
 [tool.pylint.main]
 disable = [

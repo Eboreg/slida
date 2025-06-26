@@ -17,9 +17,9 @@ def main():
         "--order",
         "-o",
         type=FileOrder,
-        default=FileOrder.NAME,
+        default=FileOrder.RANDOM,
         choices=FileOrder,
-        help="Default: name",
+        help="Default: random",
     )
     parser.add_argument("--reverse", "-r", action="store_true")
     parser.add_argument(

@@ -1,4 +1,5 @@
 from typing import Self
+
 from PySide6.QtCore import QPoint, QRect, QSize
 from PySide6.QtGui import QPixmap
 
