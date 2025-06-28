@@ -47,14 +47,38 @@ class Transition:
         return self.create_animation(parent, duration)
 
 
-class BlurDecrease(Transition):
-    property_name = "blur"
+class BlurTransition(Transition):
+    def create_animation(self, parent: Parent, duration: int) -> QAbstractAnimation:
+        group = QParallelAnimationGroup(parent)
+        blur_anim = QPropertyAnimation(targetObject=parent)
+        blur_anim.setPropertyName("blur".encode())
+        blur_anim.setStartValue(self.start_value)
+        blur_anim.setEndValue(self.end_value)
+        opacity_anim = QPropertyAnimation(targetObject=parent)
+        opacity_anim.setPropertyName("opacity".encode())
+        opacity_anim.setStartValue(self.end_value / 100)
+        opacity_anim.setEndValue(self.start_value / 100)
+
+        for anim in (blur_anim, opacity_anim):
+            anim.setDuration(duration)
+            anim.setEasingCurve(self.easing)
+            group.addAnimation(anim)
+
+        return group
+
+    def init(self, parent, duration):
+        parent.setProperty("blur", self.start_value)
+        parent.setProperty("opacity", self.end_value / 100)
+
+        return self.create_animation(parent, duration)
+
+
+class BlurDecrease(BlurTransition):
     start_value = 100.0
     end_value = 0.0
 
 
-class BlurIncrease(Transition):
-    property_name = "blur"
+class BlurIncrease(BlurTransition):
     start_value = 0.0
     end_value = 100.0
 
