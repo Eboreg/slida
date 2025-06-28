@@ -4,8 +4,10 @@ It's a QT slideshow application written in Python. It only does image slideshows
 
 Some nice (?) features:
 
-* It will try to optimize the screen area usage by tiling multiple images horizontally, because why waste all that precious real estate on thick black bars?
+* It will try to optimize the screen area usage by tiling multiple images horizontally, because why waste all that precious real estate on thick black bars? (Example below)
 * A bunch of cool transitions.
+
+![Screenshot_20250628_092430](https://github.com/user-attachments/assets/81663353-2cca-43a1-9162-649b42b47c8c)
 
 ## Usage
 
