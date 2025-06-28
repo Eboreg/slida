@@ -1,19 +1,19 @@
 from PySide6.QtCore import QSize
 
-from slida.qimage import QImage
-from slida.qimages import QImages
+from slida.SlidaImage import SlidaImage
+from slida.SlidaImages import SlidaImages
 
 
 class PixmapList:
-    _images: QImages
+    _images: SlidaImages
     _bounds: QSize
-    _fitting_images_cache: QImages | None = None
+    _fitting_images_cache: SlidaImages | None = None
 
     def __init__(self, bounds: QSize):
-        self._images = QImages()
+        self._images = SlidaImages()
         self._bounds = bounds
 
-    def add_image(self, image: QImage):
+    def add_image(self, image: SlidaImage):
         self._images.add(image)
         self._fitting_images_cache = None
 
@@ -37,11 +37,11 @@ class PixmapList:
 
         return 0.0
 
-    def get_fitting_images(self) -> QImages:
+    def get_fitting_images(self) -> SlidaImages:
         if self._fitting_images_cache:
             return self._fitting_images_cache
 
-        images = QImages()
+        images = SlidaImages()
 
         for image in self._images.images:
             if images.get_empty_area(self._bounds) >= images.copy().add(image).get_empty_area(self._bounds):

@@ -3,13 +3,13 @@ from typing import Self
 from PySide6.QtCore import QPoint, QRect, QSize
 from PySide6.QtGui import QPixmap
 
-from slida.qimage import QImage
+from slida.SlidaImage import SlidaImage
 
 
-class QImages:
-    images: list[QImage]
+class SlidaImages:
+    images: list[SlidaImage]
 
-    def __init__(self, images: list[QImage] | None = None):
+    def __init__(self, images: list[SlidaImage] | None = None):
         self.images = images or []
 
     def __iter__(self):
@@ -19,12 +19,12 @@ class QImages:
     def aspect_ratio(self) -> float:
         return sum(i.aspect_ratio for i in self.images)
 
-    def add(self, image: QImage) -> Self:
+    def add(self, image: SlidaImage) -> Self:
         self.images.append(image)
         return self
 
-    def copy(self) -> "QImages":
-        return QImages(self.images.copy())
+    def copy(self) -> "SlidaImages":
+        return SlidaImages(self.images.copy())
 
     def get_empty_area(self, bounds: QSize) -> int:
         width, height = self.get_size(bounds)

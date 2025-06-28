@@ -7,8 +7,8 @@ from PySide6.QtCore import (
 from PySide6.QtGui import QPalette
 from PySide6.QtWidgets import QGraphicsScene, QGraphicsView
 
-from slida.animpixmapswidget import AnimPixmapsWidget
-from slida.pixmaplist import PixmapList
+from slida.AnimPixmapsWidget import AnimPixmapsWidget
+from slida.PixmapList import PixmapList
 from slida.transitions import TransitionPair
 
 

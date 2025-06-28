@@ -1,21 +1,68 @@
-from typing import Any
+import dataclasses
 
-from PySide6.QtWidgets import QWidget
+from PySide6.QtCore import (
+    QAbstractAnimation,
+    QAnimationGroup,
+    QEasingCurve,
+    QParallelAnimationGroup,
+    QPropertyAnimation,
+    QSequentialAnimationGroup,
+)
+from PySide6.QtWidgets import QGraphicsWidget, QWidget
+
+
+Parent = QWidget | QGraphicsWidget
 
 
 class Transition:
-    property_name: str
-    start_value: Any
-    end_value: Any
+    name: str
+    property_name: str | None = None
+    start_value: float = 0.0
+    end_value: float = 0.0
+    easing: QEasingCurve.Type = QEasingCurve.Type.Linear
 
-    def __init__(self, parent: QWidget):
-        self.parent = parent
+    def __init__(self, name: str):
+        self.name = name
 
-    def get_start_value(self):
+    def create_animation(self, parent: Parent, duration: int) -> QAbstractAnimation:
+        anim = QPropertyAnimation(targetObject=parent)
+        anim.setDuration(duration)
+        anim.setEasingCurve(self.easing)
+        anim.setStartValue(self.get_start_value(parent))
+        anim.setEndValue(self.get_end_value(parent))
+        if self.property_name:
+            anim.setPropertyName(self.property_name.encode())
+        return anim
+
+    def get_start_value(self, parent: Parent) -> float:
         return self.start_value
 
-    def get_end_value(self):
+    def get_end_value(self, parent: Parent) -> float:
         return self.end_value
+
+    def init(self, parent: Parent, duration: int):
+        if self.property_name:
+            parent.setProperty(self.property_name, self.get_start_value(parent))
+
+        return self.create_animation(parent, duration)
+
+
+class BlurDecrease(Transition):
+    property_name = "blur"
+    start_value = 100.0
+    end_value = 0.0
+
+
+class BlurIncrease(Transition):
+    property_name = "blur"
+    start_value = 0.0
+    end_value = 100.0
+
+
+class ClockfaceOut(Transition):
+    property_name = "clockface"
+    start_value = 0.0
+    end_value = 1.0
 
 
 class FadeIn(Transition):
@@ -30,68 +77,38 @@ class FadeOut(Transition):
     end_value = 0.0
 
 
-class SlideInFromBottom(Transition):
-    property_name = "y"
-    end_value = 0.0
-
-    def get_start_value(self):
-        return self.parent.size().height()
-
-
-class SlideOutToTop(Transition):
-    property_name = "y"
+class Grow(Transition):
+    property_name = "scale"
     start_value = 0.0
-
-    def get_end_value(self):
-        return self.parent.size().height() * -1
+    end_value = 1.0
 
 
-class SlideInFromTop(Transition):
-    property_name = "y"
-    end_value = 0.0
-
-    def get_start_value(self):
-        return self.parent.size().height() * -1
-
-
-class SlideOutToBottom(Transition):
-    property_name = "y"
+class MarqueeOut(Transition):
+    property_name = "marquee"
     start_value = 0.0
-
-    def get_end_value(self):
-        return self.parent.size().height()
+    end_value = 1.0
 
 
-class SlideInFromLeft(Transition):
-    property_name = "x"
-    end_value = 0.0
-
-    def get_start_value(self):
-        return self.parent.size().width() * -1
+class Noop(Transition):
+    ...
 
 
-class SlideOutToRight(Transition):
-    property_name = "x"
+class RadialOut(Transition):
+    property_name = "radial"
     start_value = 0.0
-
-    def get_end_value(self):
-        return self.parent.size().width()
+    end_value = 1.0
 
 
-class SlideInFromRight(Transition):
-    property_name = "x"
-    end_value = 0.0
-
-    def get_start_value(self):
-        return self.parent.size().width()
-
-
-class SlideOutToLeft(Transition):
-    property_name = "x"
+class RandomSquaresIn(Transition):
+    property_name = "random_squares"
     start_value = 0.0
+    end_value = 1.0
 
-    def get_end_value(self):
-        return self.parent.size().width() * -1
+    def init(self, parent, duration):
+        if isinstance(parent, QGraphicsWidget):
+            parent.setZValue(1.0)
+
+        return super().init(parent, duration)
 
 
 class Shrink(Transition):
@@ -100,94 +117,133 @@ class Shrink(Transition):
     end_value = 0.0
 
 
-class Grow(Transition):
-    property_name = "scale"
-    start_value = 0.0
-    end_value = 1.0
-
-
-class BlurIncrease(Transition):
-    property_name = "blur"
-    start_value = 0.0
-    end_value = 100.0
-
-
-class BlurDecrease(Transition):
-    property_name = "blur"
-    start_value = 100.0
+class SlideInFromBottom(Transition):
+    property_name = "y"
     end_value = 0.0
 
-
-class MarqueeIncrease(Transition):
-    property_name = "marquee"
-    start_value = 0.0
-    end_value = 1.0
+    def get_start_value(self, parent):
+        return parent.size().height()
 
 
-class MarqueeDecrease(Transition):
-    property_name = "marquee"
-    start_value = 1.0
+class SlideInFromLeft(Transition):
+    property_name = "x"
     end_value = 0.0
 
+    def get_start_value(self, parent):
+        return parent.size().width() * -1
 
-class Noop(Transition):
-    property_name = "noop"
-    start_value = 0.0
+
+class SlideInFromRight(Transition):
+    property_name = "x"
     end_value = 0.0
 
+    def get_start_value(self, parent):
+        return parent.size().width()
 
+
+class SlideInFromTop(Transition):
+    property_name = "y"
+    end_value = 0.0
+
+    def get_start_value(self, parent):
+        return parent.size().height() * -1
+
+
+class SlideOutToBottom(Transition):
+    property_name = "y"
+    start_value = 0.0
+
+    def get_end_value(self, parent):
+        return parent.size().height()
+
+
+class SlideOutToLeft(Transition):
+    property_name = "x"
+    start_value = 0.0
+
+    def get_end_value(self, parent):
+        return parent.size().width() * -1
+
+
+class SlideOutToRight(Transition):
+    property_name = "x"
+    start_value = 0.0
+
+    def get_end_value(self, parent):
+        return parent.size().width()
+
+
+class SlideOutToTop(Transition):
+    property_name = "y"
+    start_value = 0.0
+
+    def get_end_value(self, parent):
+        return parent.size().height() * -1
+
+
+@dataclasses.dataclass
 class TransitionPair:
-    enter_type: type[Transition] | None = None
-    exit_type: type[Transition] | None = None
-    enter: Transition | None = None
-    exit: Transition | None = None
+    name: str
+    enter_class: dataclasses.InitVar[type[Transition]]
+    exit_class: dataclasses.InitVar[type[Transition]]
+    enter: Transition = dataclasses.field(init=False)
+    exit: Transition = dataclasses.field(init=False)
 
-    def __init__(self, parent: QWidget):
-        self.parent = parent
-        if self.enter_type is not None:
-            self.enter = self.enter_type(parent)
-        if self.exit_type is not None:
-            self.exit = self.exit_type(parent)
+    def __post_init__(self, enter_class: type[Transition], exit_class: type[Transition]):
+        self.enter = enter_class(name=self.name)
+        self.exit = exit_class(name=self.name)
 
+    def init(
+        self,
+        parent: Parent,
+        enter_parent: Parent,
+        exit_parent: Parent,
+        duration: int,
+    ) -> QAnimationGroup:
+        group = QParallelAnimationGroup(parent)
+        group.addAnimation(self.enter.init(enter_parent, duration))
+        group.addAnimation(self.exit.init(exit_parent, duration))
 
-class Fade(TransitionPair):
-    exit_type = FadeOut
-    enter_type = FadeIn
-
-
-class SlideUp(TransitionPair):
-    exit_type = SlideOutToTop
-    enter_type = SlideInFromBottom
-
-
-class SlideDown(TransitionPair):
-    exit_type = SlideOutToBottom
-    enter_type = SlideInFromTop
+        return group
 
 
-class SlideRight(TransitionPair):
-    exit_type = SlideOutToRight
-    enter_type = SlideInFromLeft
+@dataclasses.dataclass
+class SequentialTransitionPair(TransitionPair):
+    def init(self, parent, enter_parent, exit_parent, duration):
+        group = QSequentialAnimationGroup(parent)
+        group.addAnimation(self.exit.init(exit_parent, int(duration / 2)))
+        group.addAnimation(self.enter.init(enter_parent, int(duration / 2)))
+
+        return group
 
 
-class SlideLeft(TransitionPair):
-    exit_type = SlideOutToLeft
-    enter_type = SlideInFromRight
+blur = TransitionPair("blur", BlurDecrease, BlurIncrease)
+clockface = TransitionPair("clockface", Noop, ClockfaceOut)
+fade = TransitionPair("fade", FadeIn, FadeOut)
+marquee = TransitionPair("marquee", Noop, MarqueeOut)
+radial = TransitionPair("radial", Noop, RadialOut)
+random_squares = TransitionPair("random_squares", RandomSquaresIn, Noop)
+shrink_grow = SequentialTransitionPair("shrink_grow", Grow, Shrink)
+slide_down = TransitionPair("slide_down", SlideInFromTop, SlideOutToBottom)
+slide_left = TransitionPair("slide_left", SlideInFromRight, SlideOutToLeft)
+slide_right = TransitionPair("slide_right", SlideInFromLeft, SlideOutToRight)
+slide_up = TransitionPair("slide_up", SlideInFromBottom, SlideOutToTop)
+top_squares = TransitionPair("top_squares", RandomSquaresIn, Noop)
+topleft_squares = TransitionPair("topleft_squares", RandomSquaresIn, Noop)
 
 
-class ShrinkGrow(TransitionPair):
-    exit_type = Shrink
-    enter_type = Grow
-
-
-class Blur(TransitionPair):
-    exit_type = BlurIncrease
-    enter_type = BlurDecrease
-
-
-class Marquee(TransitionPair):
-    exit_type = MarqueeIncrease
-    enter_type = Noop
-
-
-TRANSITION_PAIR_CLASSES = [Fade, SlideUp, SlideDown, SlideLeft, SlideRight, ShrinkGrow, Marquee]
+TRANSITION_PAIRS = [
+    blur,
+    clockface,
+    fade,
+    marquee,
+    radial,
+    random_squares,
+    shrink_grow,
+    slide_down,
+    slide_left,
+    slide_right,
+    slide_up,
+    top_squares,
+    topleft_squares,
+]

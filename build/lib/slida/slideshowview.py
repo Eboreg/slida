@@ -9,12 +9,12 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import QGraphicsScene, QGraphicsView, QMenu
 
-from slida.animpixmapsview import AnimPixmapsView
-from slida.dirscanner import DirScanner, FileOrder
-from slida.pixmaplist import PixmapList
-from slida.qimage import QImage
-from slida.toast import Toast
-from slida.transitions import TRANSITION_PAIR_CLASSES
+from slida.AnimPixmapsView import AnimPixmapsView
+from slida.DirScanner import DirScanner, FileOrder
+from slida.PixmapList import PixmapList
+from slida.SlidaImage import SlidaImage
+from slida.Toast import Toast
+from slida.transitions import TRANSITION_PAIR_CLASSES, Marquee
 from slida.utils import image_ratio
 
 
@@ -154,10 +154,11 @@ class SlideshowView(QGraphicsView):
         history_idx = self.history_idx + delta
         self.remaining_time_tmp = None
 
-        if history_idx >= 0 and not self.pixmaps_view.is_transitioning():
+        if history_idx >= 0 and not self.pixmaps_view.__is_transitioning():
             self.history_idx = history_idx
             pixmaps = self.__setup_pixmaps(history_idx)
-            self.pixmaps_view.transition_to(pixmaps, random.choice(TRANSITION_PAIR_CLASSES))
+            self.pixmaps_view.transition_to(pixmaps, Marquee)
+            # self.pixmaps_view.transition_to(pixmaps, random.choice(TRANSITION_PAIR_CLASSES))
 
             if self.timer.isActive():
                 self.timer.start(self.real_interval_ms)
@@ -228,11 +229,11 @@ class SlideshowView(QGraphicsView):
             self.history.append(HistoryEntry())
         return self.history[history_idx]
 
-    def __get_next_image(self, max_ratio: float | None, reinited: bool = False) -> QImage | None:
+    def __get_next_image(self, max_ratio: float | None, reinited: bool = False) -> SlidaImage | None:
         for file in self.files:
             if max_ratio is None or image_ratio(file) <= max_ratio:
                 self.files.remove(file)
-                return QImage(file)
+                return SlidaImage(file)
 
         if not reinited:
             self.files = self.initial_files.copy()
@@ -273,7 +274,7 @@ class SlideshowView(QGraphicsView):
         while pixmaps.can_fit_more():
             file = next(filenames, None)
             if file:
-                image = QImage(file)
+                image = SlidaImage(file)
             else:
                 image = self.__get_next_image(max_ratio=pixmaps.fitting_image_max_ratio())
                 if image:
