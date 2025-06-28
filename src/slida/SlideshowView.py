@@ -17,11 +17,8 @@ from slida.DirScanner import DirScanner, FileOrder
 from slida.PixmapList import PixmapList
 from slida.SlidaImage import SlidaImage
 from slida.Toast import Toast
-from slida.transitions import TRANSITION_PAIRS, marquee, clockface, random_squares, radial, top_squares, topleft_squares
+from slida.transitions import TRANSITION_PAIRS
 from slida.utils import coerce_between, image_ratio
-
-
-transition_pairs = [marquee, radial, clockface, random_squares, top_squares, topleft_squares]
 
 
 class HistoryEntry:
@@ -158,7 +155,13 @@ class SlideshowView(QGraphicsView):
 
     def keyReleaseEvent(self, event: QKeyEvent):
         combo = event.keyCombination()
-        if combo.keyboardModifiers() == Qt.KeyboardModifier.NoModifier:
+
+        if combo.keyboardModifiers() & Qt.KeyboardModifier.ControlModifier:
+            if combo.key() == Qt.Key.Key_Plus:
+                self.nudge_transition_duration(0.1)
+            elif combo.key() == Qt.Key.Key_Minus:
+                self.nudge_transition_duration(-0.1)
+        else:
             if combo.key() in (Qt.Key.Key_Space, Qt.Key.Key_Right):
                 self.move_by(1)
             elif combo.key() in (Qt.Key.Key_Backspace, Qt.Key.Key_Left):
@@ -175,11 +178,6 @@ class SlideshowView(QGraphicsView):
                 self.nudge_interval(-1)
             elif combo.key() == Qt.Key.Key_Question:
                 self.toggle_help_toast()
-        elif combo.keyboardModifiers() & Qt.KeyboardModifier.ControlModifier:
-            if combo.key() == Qt.Key.Key_Plus:
-                self.nudge_transition_duration(0.1)
-            elif combo.key() == Qt.Key.Key_Minus:
-                self.nudge_transition_duration(-0.1)
 
     def mouseReleaseEvent(self, event: QMouseEvent):
         if event.button() == Qt.MouseButton.LeftButton:

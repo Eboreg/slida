@@ -1,6 +1,13 @@
 import random
+
 from PySide6.QtCore import Property, QPoint, QPointF, Qt
-from PySide6.QtGui import QConicalGradient, QGradient, QLinearGradient, QPainter, QRadialGradient
+from PySide6.QtGui import (
+    QConicalGradient,
+    QGradient,
+    QLinearGradient,
+    QPainter,
+    QRadialGradient,
+)
 from PySide6.QtWidgets import (
     QGraphicsBlurEffect,
     QGraphicsOpacityEffect,
