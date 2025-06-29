@@ -2,6 +2,7 @@ import argparse
 import sys
 from pathlib import Path
 
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication
 
 from slida import __version__
@@ -49,6 +50,7 @@ def main():
         parser.error(str(e))
 
     app = QApplication([])
+    app.setWindowIcon(QIcon(str(Path(__file__).parent / "slida.png")))
     app.setApplicationName("Slida v" + __version__)
     slida = SlideshowView(args.path, config=config)
     slida.show()
