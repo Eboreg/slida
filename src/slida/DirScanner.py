@@ -3,7 +3,11 @@ import enum
 import mimetypes
 import os
 import random
-from typing import Generator
+from typing import TYPE_CHECKING, Generator
+
+
+if TYPE_CHECKING:
+    from slida.utils import UserConfig
 
 
 class FileOrder(enum.StrEnum):
@@ -28,30 +32,32 @@ class File:
 
 
 class DirScanner:
-    def __init__(self, root_paths: str | list[str], recursive: bool = False):
+    def __init__(self, root_paths: str | list[str], config: "UserConfig | None" = None):
+        from slida.utils import UserConfig
+
         self.root_paths = root_paths if isinstance(root_paths, list) else [root_paths]
-        self.recursive = recursive
+        self.config = config or UserConfig()
         self.visited_inodes: list[int] = []
 
-    def listdir(self, order: FileOrder, reverse: bool = False) -> list[File]:
+    def listdir(self) -> list[File]:
         entries: list[File] = []
 
         for path in self.root_paths:
             entries.extend(list(self.scandir(path)))
 
-        if order == FileOrder.NAME:
-            return sorted(entries, key=lambda e: e.path.lower(), reverse=reverse)
-        if order == FileOrder.CREATED:
-            return sorted(entries, key=lambda e: e.ctime, reverse=reverse)
-        if order == FileOrder.MODIFIED:
-            return sorted(entries, key=lambda e: e.mtime, reverse=reverse)
-        if order == FileOrder.RANDOM:
+        if self.config.order == FileOrder.NAME:
+            return sorted(entries, key=lambda e: e.path.lower(), reverse=self.config.reverse)
+        if self.config.order == FileOrder.CREATED:
+            return sorted(entries, key=lambda e: e.ctime, reverse=self.config.reverse)
+        if self.config.order == FileOrder.MODIFIED:
+            return sorted(entries, key=lambda e: e.mtime, reverse=self.config.reverse)
+        if self.config.order == FileOrder.RANDOM:
             random.shuffle(entries)
             return entries
         raise RuntimeError("This should not happen")
 
-    def list(self, order: FileOrder, reverse: bool = False) -> list[str]:
-        return [entry.path for entry in self.listdir(order=order, reverse=reverse)]
+    def list(self) -> list[str]:
+        return [entry.path for entry in self.listdir()]
 
     def scandir(self, path: str) -> "Generator[File]":
         if os.path.isfile(path):
@@ -67,7 +73,7 @@ class DirScanner:
                 if stat.st_ino in self.visited_inodes:
                     continue
                 self.visited_inodes.append(stat.st_ino)
-                if entry.is_dir() and self.recursive:
+                if entry.is_dir() and self.config.recursive:
                     yield from self.scandir(entry.path)
                 elif entry.is_file():
                     mimetype = mimetypes.guess_type(entry.path)

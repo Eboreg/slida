@@ -13,49 +13,36 @@ from PySide6.QtGui import (
 from PySide6.QtWidgets import QGraphicsScene, QGraphicsView, QMenu
 
 from slida.AnimPixmapsView import AnimPixmapsView
-from slida.DirScanner import DirScanner, FileOrder
+from slida.DirScanner import DirScanner
 from slida.PixmapList import PixmapList
 from slida.SlidaImage import SlidaImage
 from slida.Toast import Toast
 from slida.transitions import TRANSITION_PAIRS
-from slida.utils import coerce_between, image_ratio
-
-
-class HistoryEntry:
-    files: list[str]
-
-    def __init__(self):
-        self.files = []
+from slida.utils import UserConfig, coerce_between, image_ratio
 
 
 class SlideshowView(QGraphicsView):
+    __config: UserConfig
     __debug_toast: Toast | None = None
     __files: list[str]
     __history_idx: int = 0
-    __history: list[HistoryEntry]
+    __history: list[list[str]]
     __initial_files: list[str]
     __remaining_time_tmp: int | None = None
     __show_debug_toast: bool = False
     __toasts: list[Toast]
 
-    def __init__(
-        self,
-        path: str | list[str],
-        recursive: bool = False,
-        interval: int = 20,
-        transition_duration: float = 0.5,
-        order: FileOrder = FileOrder.RANDOM,
-        reverse: bool = False,
-        disable_timer: bool = False,
-    ):
+    def __init__(self, path: str | list[str], config: UserConfig | None = None):
         super().__init__()
 
-        entries = DirScanner(path, recursive=recursive).list(order=order, reverse=reverse)
+        self.__config = config or UserConfig()
+
+        entries = DirScanner(path, config=self.__config).list()
         self.__initial_files = entries
         self.__files = entries.copy()
 
-        self.__transition_duration = transition_duration
-        self.__interval = interval
+        self.__transition_duration = self.__config.transition_duration
+        self.__interval = self.__config.interval
         self.__history = []
         self.__toasts = []
 
@@ -87,7 +74,7 @@ class SlideshowView(QGraphicsView):
         self.__timer = QTimer(self, interval=self.real_interval_ms)
         self.__timer.timeout.connect(self.__on_timeout)
 
-        if not disable_timer:
+        if not self.__config.no_auto:
             self.__timer.start()
 
     @property
@@ -97,7 +84,7 @@ class SlideshowView(QGraphicsView):
     def contextMenuEvent(self, event: QContextMenuEvent):
         menu = QMenu(self)
         timer_was_active = self.pause_slideshow()
-        entry = self.__get_history_entry(self.__history_idx)
+        files = self.__get_history_entry(self.__history_idx)
 
         def on_hide():
             if timer_was_active:
@@ -113,7 +100,7 @@ class SlideshowView(QGraphicsView):
 
         menu.addSeparator()
 
-        for path in entry.files:
+        for path in files:
             if "/" not in path:
                 path = f"./{path}"
             directory, basename = path.rsplit("/", 1)
@@ -190,7 +177,7 @@ class SlideshowView(QGraphicsView):
         if history_idx >= 0 and not self.__pixmaps_view.is_transitioning:
             self.__history_idx = history_idx
             pixmaps = self.__setup_pixmaps(history_idx)
-            self.__pixmaps_view.transition_to(pixmaps, random.choice(TRANSITION_PAIRS), self.__transition_duration)
+            self.__pixmaps_view.transition_to(pixmaps, self.__get_next_transition_pair(), self.__transition_duration)
 
             if self.__timer.isActive():
                 self.__timer.start(self.real_interval_ms)
@@ -258,9 +245,9 @@ class SlideshowView(QGraphicsView):
             if show_toast:
                 self.show_toast("Slideshow started")
 
-    def __get_history_entry(self, history_idx: int) -> HistoryEntry:
+    def __get_history_entry(self, history_idx: int) -> list[str]:
         while len(self.__history) <= history_idx:
-            self.__history.append(HistoryEntry())
+            self.__history.append([])
         return self.__history[history_idx]
 
     def __get_next_image(self, max_ratio: float | None, reinited: bool = False) -> SlidaImage | None:
@@ -280,6 +267,16 @@ class SlideshowView(QGraphicsView):
             return self.__get_next_image(max_ratio=max_ratio, reinited=True)
 
         return None
+
+    def __get_next_transition_pair(self):
+        pairs = TRANSITION_PAIRS
+        if self.__config.include_transitions is not None:
+            pairs = [p for p in pairs if p.name in self.__config.include_transitions]
+        elif self.__config.exclude_transitions is not None:
+            pairs = [p for p in pairs if p.name not in self.__config.exclude_transitions]
+        if not pairs:
+            return None
+        return random.choice(pairs)
 
     def __get_no_image_pixmap(self):
         size = self.size()
@@ -320,9 +317,9 @@ class SlideshowView(QGraphicsView):
                 offset += toast.label.height()
 
     def __setup_pixmaps(self, history_idx: int) -> PixmapList:
-        entry = self.__get_history_entry(history_idx)
+        files = self.__get_history_entry(history_idx)
         pixmaps = PixmapList(self.size().toSizeF())
-        filenames = iter(entry.files)
+        filenames = iter(files)
 
         while self.__initial_files and pixmaps.can_fit_more():
             file = next(filenames, None)
@@ -331,7 +328,7 @@ class SlideshowView(QGraphicsView):
             else:
                 image = self.__get_next_image(max_ratio=pixmaps.fitting_image_max_ratio())
                 if image:
-                    entry.files.append(image.filename)
+                    files.append(image.filename)
             if image:
                 pixmaps.add_image(image)
             else:

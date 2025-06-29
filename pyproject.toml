@@ -11,9 +11,11 @@ description = ""
 license = {file = "LICENSE"}
 requires-python = ">=3.10"
 dependencies = [
-    "PySide6",
-    "pillow",
     "numpy",
+    "pillow",
+    "platformdirs",
+    "PySide6",
+    "pyyaml",
 ]
 dynamic = ["version"]
 

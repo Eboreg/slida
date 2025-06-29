@@ -3,7 +3,7 @@ from PySide6.QtWidgets import QGraphicsScene, QGraphicsView
 
 from slida.AnimPixmapsWidget import AnimPixmapsWidget
 from slida.PixmapList import PixmapList
-from slida.transitions import TransitionPair
+from slida.transitions import TransitionPair, noop
 
 
 class AnimPixmapsView(QGraphicsView):
@@ -55,7 +55,16 @@ class AnimPixmapsView(QGraphicsView):
         self.__current_widget.set_pixmaps(pixmaps)
         self.scene().update(self.sceneRect())
 
-    def transition_to(self, pixmaps: PixmapList, transitions: TransitionPair, transition_duration: float):
+    def transition_to(
+        self,
+        pixmaps: PixmapList,
+        transitions: TransitionPair | None,
+        transition_duration: float,
+    ):
+        if transitions is None:
+            transitions = noop
+            transition_duration = 0.0
+
         group = transitions.init(self, self.__next_widget, self.__current_widget, int(transition_duration * 1000))
         self.__current_widget.set_transition(transitions.exit)
         self.__next_widget.set_transition(transitions.enter)

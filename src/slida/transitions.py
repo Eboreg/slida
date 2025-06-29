@@ -245,6 +245,7 @@ blur = TransitionPair("blur", BlurDecrease, BlurIncrease)
 clockface = TransitionPair("clockface", Noop, ClockfaceOut)
 fade = TransitionPair("fade", FadeIn, FadeOut)
 marquee = TransitionPair("marquee", Noop, MarqueeOut)
+noop = TransitionPair("noop", Noop, Noop)
 radial = TransitionPair("radial", Noop, RadialOut)
 random_squares = TransitionPair("random_squares", RandomSquaresIn, Noop)
 shrink_grow = SequentialTransitionPair("shrink_grow", Grow, Shrink)
@@ -256,7 +257,7 @@ top_squares = TransitionPair("top_squares", RandomSquaresIn, Noop)
 topleft_squares = TransitionPair("topleft_squares", RandomSquaresIn, Noop)
 
 
-TRANSITION_PAIRS = [
+TRANSITION_PAIRS: list[TransitionPair] = [
     blur,
     clockface,
     fade,

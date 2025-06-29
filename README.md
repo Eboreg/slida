@@ -32,3 +32,31 @@ options:
 ```
 
 Press `?` in the GUI for keyboard mapping info.
+
+## Configuration files
+
+A file called `slida.yaml` will be looked for in the following locations, in order of priority:
+
+1. Any directory included as `path` on the command line
+2. Current working directory
+3. `slida` subdirectory of user's config directory (e.g. `~/.config/slida/` on Linux)
+
+If multiple config files are found, they will be merged so that arguments in a higher priority file will overwrite those in lower priority files.
+
+All command line arguments (in their long versions), except `path` and `help`, can be used in these files.
+
+Also, the argument `transitions` can be included. This is an object that may contain the string arrays `include` and `exclude`, and governs which effects will be used for transitioning between images. If both `include` and `exclude` are defined, `exclude` is ignored. The full list of transitions is available in `slida.transitions.TRANSITION_PAIRS`.
+
+### Example config file
+
+```yaml
+recursive: true
+transitions:
+  exclude:
+    - slide_down
+    - slide_right
+    - slide_up
+    - slide_left
+```
+
+(I like to exclude the "slide" transitions as they are kind of boring.)
