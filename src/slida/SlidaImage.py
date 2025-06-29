@@ -18,7 +18,7 @@ class SlidaImage:
         return self.aspect_ratio * height
 
     def scale(self, height: int) -> QPixmap:
-        width = int(self.get_scaled_width(height))
+        width = round(self.get_scaled_width(height))
         if self.__image.height() != height or self.__image.width() != width:
             self.__image = self.__image.scaled(width, height)
 

@@ -4,8 +4,8 @@ It's a QT slideshow application written in Python. It only does image slideshows
 
 Some nice (?) features:
 
-* It will try to optimize the screen area usage by tiling multiple images horizontally, because why waste all that precious real estate on thick black bars? (Example below)
-* A bunch of cool transitions.
+* By default, it will try to optimize the screen area usage by tiling multiple images horizontally, because why waste all that precious real estate on thick black bars? (Example below)
+* A bunch of cool transitions
 
 ![Screenshot_20250628_092430](https://github.com/user-attachments/assets/81663353-2cca-43a1-9162-649b42b47c8c)
 
@@ -13,15 +13,17 @@ Some nice (?) features:
 
 ```shell
 $ slida -h
-usage: slida [-h] [--recursive] [--no-auto] [--interval INTERVAL] [--order {name,created,modified,random}] [--reverse] [--transition-duration TRANSITION_DURATION] path [path ...]
+usage: slida [-h] [--recursive] [--no-auto] [--interval INTERVAL] [--order {name,created,modified,random}] [--reverse] [--transition-duration TRANSITION_DURATION] [--no-tiling]
+             [--transitions TRANSITIONS [TRANSITIONS ...]] [--exclude-transitions EXCLUDE_TRANSITIONS [EXCLUDE_TRANSITIONS ...]]
+             path [path ...]
 
 positional arguments:
   path
 
 options:
   -h, --help            show this help message and exit
-  --recursive, -R
-  --no-auto             Disables auto-advance.
+  --recursive, -R       Iterate through subdirectories
+  --no-auto             Disables auto-advance
   --interval INTERVAL, -i INTERVAL
                         Auto-advance interval, in seconds. Default: 20
   --order {name,created,modified,random}, -o {name,created,modified,random}
@@ -29,7 +31,14 @@ options:
   --reverse, -r
   --transition-duration TRANSITION_DURATION, -td TRANSITION_DURATION
                         In seconds. 0 = no transitions. Default: 0.5
+  --no-tiling           Don't tile images horizontally
+  --transitions TRANSITIONS [TRANSITIONS ...]
+                        One or more transitions to use. Default: use them all
+  --exclude-transitions EXCLUDE_TRANSITIONS [EXCLUDE_TRANSITIONS ...]
+                        One or more transitions NOT to use
 ```
+
+`--transitions` and `--exclude-transitions` govern which effects will be used for transitioning between images. Explicit exclusion overrides explicit inclusion. The full list of transitions is available in `slida.transitions.TRANSITION_PAIRS`.
 
 Press `?` in the GUI for keyboard mapping info.
 
@@ -45,18 +54,15 @@ If multiple config files are found, they will be merged so that arguments in a h
 
 All command line arguments (in their long versions), except `path` and `help`, can be used in these files.
 
-Also, the argument `transitions` can be included. This is an object that may contain the string arrays `include` and `exclude`, and governs which effects will be used for transitioning between images. If both `include` and `exclude` are defined, `exclude` is ignored. The full list of transitions is available in `slida.transitions.TRANSITION_PAIRS`.
-
 ### Example config file
 
 ```yaml
 recursive: true
-transitions:
-  exclude:
-    - slide_down
-    - slide_right
-    - slide_up
-    - slide_left
+exclude-transitions:
+  - slide-down
+  - slide-right
+  - slide-up
+  - slide-left
 ```
 
 (I like to exclude the "slide" transitions as they are kind of boring.)

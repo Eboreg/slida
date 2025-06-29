@@ -3,7 +3,7 @@ from PySide6.QtWidgets import QGraphicsScene, QGraphicsView
 
 from slida.AnimPixmapsWidget import AnimPixmapsWidget
 from slida.PixmapList import PixmapList
-from slida.transitions import TransitionPair, noop
+from slida.transitions import NOOP, TransitionPair
 
 
 class AnimPixmapsView(QGraphicsView):
@@ -37,9 +37,6 @@ class AnimPixmapsView(QGraphicsView):
         self.__current_widget = self.__next_widget
         self.__next_widget = old_current
         self.__is_transitioning = False
-
-        self.__next_widget.reset_transition_properties()
-        self.__current_widget.reset_transition_properties()
         self.__next_widget.stackBefore(self.__current_widget)
 
     def resizeEvent(self, event):
@@ -61,16 +58,22 @@ class AnimPixmapsView(QGraphicsView):
         transitions: TransitionPair | None,
         transition_duration: float,
     ):
+        self.__next_widget.set_pixmaps(pixmaps)
+        self.scene().update(self.sceneRect())
+
         if transitions is None:
-            transitions = noop
+            transitions = NOOP
             transition_duration = 0.0
 
-        group = transitions.init(self, self.__next_widget, self.__current_widget, int(transition_duration * 1000))
+        group = transitions.create_animation(
+            parent=self,
+            enter_parent=self.__next_widget,
+            exit_parent=self.__current_widget,
+            duration=int(transition_duration * 1000),
+        )
         self.__current_widget.set_transition(transitions.exit)
         self.__next_widget.set_transition(transitions.enter)
 
-        self.__next_widget.set_pixmaps(pixmaps)
-        self.scene().update(self.sceneRect())
         self.__is_transitioning = True
 
         group.finished.connect(self.on_transition_finished)

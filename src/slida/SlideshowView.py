@@ -18,7 +18,8 @@ from slida.PixmapList import PixmapList
 from slida.SlidaImage import SlidaImage
 from slida.Toast import Toast
 from slida.transitions import TRANSITION_PAIRS
-from slida.utils import UserConfig, coerce_between, image_ratio
+from slida.UserConfig import UserConfig
+from slida.utils import coerce_between, image_ratio
 
 
 class SlideshowView(QGraphicsView):
@@ -62,9 +63,7 @@ class SlideshowView(QGraphicsView):
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.DefaultContextMenu)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-
         self.scene().addWidget(self.__pixmaps_view)
-        self.draw()
 
         if self.__show_debug_toast:
             debug_timer = QTimer(self, interval=200)
@@ -76,6 +75,8 @@ class SlideshowView(QGraphicsView):
 
         if not self.__config.no_auto:
             self.__timer.start()
+
+        self.draw()
 
     @property
     def real_interval_ms(self) -> int:
@@ -269,11 +270,7 @@ class SlideshowView(QGraphicsView):
         return None
 
     def __get_next_transition_pair(self):
-        pairs = TRANSITION_PAIRS
-        if self.__config.include_transitions is not None:
-            pairs = [p for p in pairs if p.name in self.__config.include_transitions]
-        elif self.__config.exclude_transitions is not None:
-            pairs = [p for p in pairs if p.name not in self.__config.exclude_transitions]
+        pairs = self.__get_transition_pairs()
         if not pairs:
             return None
         return random.choice(pairs)
@@ -289,6 +286,16 @@ class SlideshowView(QGraphicsView):
         painter.setFont(font)
         painter.drawText(image.rect(), Qt.AlignmentFlag.AlignCenter, "No images found!")
         return image
+
+    def __get_transition_pairs(self):
+        pairs = TRANSITION_PAIRS
+        if self.__config.transitions is not None:
+            if "all" in self.__config.transitions:
+                return pairs
+            pairs = [p for p in pairs if p.name in self.__config.transitions]
+        if self.__config.exclude_transitions is not None:
+            pairs = [p for p in pairs if p.name not in self.__config.exclude_transitions]
+        return pairs
 
     @Slot()
     def __on_debug_timeout(self):
@@ -321,7 +328,7 @@ class SlideshowView(QGraphicsView):
         pixmaps = PixmapList(self.size().toSizeF())
         filenames = iter(files)
 
-        while self.__initial_files and pixmaps.can_fit_more():
+        while self.__initial_files and (len(pixmaps) == 0 or not self.__config.no_tiling) and pixmaps.can_fit_more():
             file = next(filenames, None)
             if file:
                 image = SlidaImage(QPixmap(file), file)

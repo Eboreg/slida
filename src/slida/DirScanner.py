@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Generator
 
 
 if TYPE_CHECKING:
-    from slida.utils import UserConfig
+    from slida.UserConfig import UserConfig
 
 
 class FileOrder(enum.StrEnum):
@@ -33,7 +33,7 @@ class File:
 
 class DirScanner:
     def __init__(self, root_paths: str | list[str], config: "UserConfig | None" = None):
-        from slida.utils import UserConfig
+        from slida.UserConfig import UserConfig
 
         self.root_paths = root_paths if isinstance(root_paths, list) else [root_paths]
         self.config = config or UserConfig()

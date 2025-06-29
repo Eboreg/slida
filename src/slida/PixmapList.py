@@ -1,7 +1,8 @@
 from PySide6.QtCore import QSizeF
 
+from slida.ScaledImage import ScaledImage
 from slida.SlidaImage import SlidaImage
-from slida.SlidaImages import ScaledImage, SlidaImages
+from slida.SlidaImages import SlidaImages
 
 
 class PixmapList:
@@ -12,6 +13,9 @@ class PixmapList:
     def __init__(self, bounds: QSizeF):
         self.__images = SlidaImages()
         self.__bounds = bounds
+
+    def __len__(self):
+        return len(self.__images)
 
     def __repr__(self):
         return f"<PixmapList images={repr(self.__images)}, bounds={self.__bounds}>"
@@ -25,19 +29,19 @@ class PixmapList:
         return bounds_ratio - self.__images.aspect_ratio >= 0.4
 
     def fitting_image_max_ratio(self) -> float | None:
-        max_x = self.__bounds.width()
-        current_x, current_y = self.__images.get_size(self.__bounds)
-        current_a = current_x * current_y
+        max_width = self.__bounds.width()
+        current_size = self.__images.get_size(self.__bounds)
+        current_area = current_size.width() * current_size.height()
 
-        if current_x == 0:
+        if current_size.width() == 0:
             return None
 
-        if current_x < max_x:
-            current_ratio = current_x / current_y
-            min_y = current_a / max_x
-            resized_x = min_y * current_ratio
-            remaining_x = max_x - resized_x
-            return remaining_x / min_y
+        if current_size.width() < max_width:
+            current_ratio = current_size.width() / current_size.height()
+            min_height = current_area / max_width
+            resized_width = min_height * current_ratio
+            remaining_width = max_width - resized_width
+            return remaining_width / min_height
 
         return 0.0
 
