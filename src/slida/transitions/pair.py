@@ -38,6 +38,7 @@ class TransitionPair(QObject):
 
     def on_animation_state_changed(self, new_state: QAbstractAnimation.State, old_state: QAbstractAnimation.State):
         if new_state == QAbstractAnimation.State.Running and old_state != new_state:
+            print("start:", self.name)
             self.enter.on_animation_group_start()
             self.exit.on_animation_group_start()
         elif new_state == QAbstractAnimation.State.Stopped and old_state != new_state:

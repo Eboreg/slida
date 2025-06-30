@@ -3,53 +3,61 @@ from PySide6.QtCore import QEasingCurve
 from slida.transitions.base import Transition
 
 
-class HorizontalSlideMixin:
+class HorizontalSlideTransition(Transition):
     end_value = 0.0
     property_name = "x"
     easing = QEasingCurve.Type.OutBack
 
+    def cleanup(self):
+        super().cleanup()
+        self.parent().setX(0.0)
 
-class VerticalSlideMixin:
+
+class VerticalSlideTransition(Transition):
     end_value = 0.0
     property_name = "y"
     easing = QEasingCurve.Type.OutBack
 
+    def cleanup(self):
+        super().cleanup()
+        self.parent().setY(0.0)
 
-class SlideInFromBottom(VerticalSlideMixin, Transition):
+
+class SlideInFromBottom(VerticalSlideTransition):
     def get_start_value(self):
         return self.parent().size().height()
 
 
-class SlideInFromLeft(HorizontalSlideMixin, Transition):
+class SlideInFromLeft(HorizontalSlideTransition):
     def get_start_value(self):
         return self.parent().size().width() * -1
 
 
-class SlideInFromRight(HorizontalSlideMixin, Transition):
+class SlideInFromRight(HorizontalSlideTransition):
     def get_start_value(self):
         return self.parent().size().width()
 
 
-class SlideInFromTop(VerticalSlideMixin, Transition):
+class SlideInFromTop(VerticalSlideTransition):
     def get_start_value(self):
         return self.parent().size().height() * -1
 
 
-class SlideOutToBottom(VerticalSlideMixin, Transition):
+class SlideOutToBottom(VerticalSlideTransition):
     def get_end_value(self):
         return self.parent().size().height()
 
 
-class SlideOutToLeft(HorizontalSlideMixin, Transition):
+class SlideOutToLeft(HorizontalSlideTransition):
     def get_end_value(self):
         return self.parent().size().width() * -1
 
 
-class SlideOutToRight(HorizontalSlideMixin, Transition):
+class SlideOutToRight(HorizontalSlideTransition):
     def get_end_value(self):
         return self.parent().size().width()
 
 
-class SlideOutToTop(VerticalSlideMixin, Transition):
+class SlideOutToTop(VerticalSlideTransition):
     def get_end_value(self):
         return self.parent().size().height() * -1

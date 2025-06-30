@@ -5,6 +5,10 @@ from slida.transitions.base import EffectTransition
 
 
 class BlurTransition(EffectTransition[QGraphicsBlurEffect]):
+    def cleanup(self):
+        super().cleanup()
+        self.parent().setOpacity(1.0)
+
     def get_effect(self):
         parent = self.parent()
         effect = parent.graphicsEffect()
@@ -17,7 +21,7 @@ class BlurTransition(EffectTransition[QGraphicsBlurEffect]):
 
     def on_progress(self, value: float):
         super().on_progress(value)
-        self.parent().setProperty("opacity", 1 - (value / 100))
+        self.parent().setOpacity(1 - (value / 100))
         effect = self.get_effect()
 
         if value > 0.0:

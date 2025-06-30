@@ -30,6 +30,10 @@ class FadeOut(Transition):
     start_value = 1.0
     end_value = 0.0
 
+    def cleanup(self):
+        super().cleanup()
+        self.parent().setOpacity(1.0)
+
 
 class FlipTransition(Transition):
     axis: Qt.Axis
@@ -61,22 +65,28 @@ class FlipInTransition(FlipTransition):
         self.parent().setVisible(True)
 
 
+class FlipOutTransition(FlipTransition):
+    easing = QEasingCurve.Type.InSine
+
+    def cleanup(self):
+        super().cleanup()
+        self.parent().setTransform(QTransform())
+
+
 class FlipXIn(FlipInTransition):
     axis = Qt.Axis.XAxis
 
 
-class FlipXOut(FlipTransition):
+class FlipXOut(FlipOutTransition):
     axis = Qt.Axis.XAxis
-    easing = QEasingCurve.Type.InSine
 
 
 class FlipYIn(FlipInTransition):
     axis = Qt.Axis.YAxis
 
 
-class FlipYOut(FlipTransition):
+class FlipYOut(FlipOutTransition):
     axis = Qt.Axis.YAxis
-    easing = QEasingCurve.Type.InSine
 
 
 class Grow(ShrinkGrowTransition):
@@ -98,8 +108,8 @@ class HingeOut(HingeTransition):
     start_value = 0.0
     end_value = -90.0
 
-    def on_animation_group_finish(self):
-        super().on_animation_group_finish()
+    def cleanup(self):
+        super().cleanup()
         self.parent().setRotation(0.0)
 
     def on_animation_group_start(self):
@@ -116,3 +126,7 @@ class Shrink(ShrinkGrowTransition):
     end_value = 0.0
     start_value = 1.0
     easing = QEasingCurve.Type.OutSine
+
+    def cleanup(self):
+        super().cleanup()
+        self.parent().setScale(1.0)
