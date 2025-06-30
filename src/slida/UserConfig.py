@@ -2,11 +2,17 @@ import argparse
 import dataclasses
 import warnings
 from pathlib import Path
+from typing import NotRequired, TypedDict
 
 import platformdirs
 import yaml
 
 from slida.DirScanner import FileOrder
+
+
+class TransitionConfig(TypedDict):
+    include: NotRequired[list[str]]
+    exclude: NotRequired[list[str]]
 
 
 @dataclasses.dataclass
@@ -18,8 +24,7 @@ class UserConfig:
     order: FileOrder = FileOrder.RANDOM
     reverse: bool = False
     transition_duration: float = 0.3
-    transitions: list[str] | None = None
-    exclude_transitions: list[str] | None = None
+    transitions: TransitionConfig | None = None
 
     def check(self):
         if self.interval < 1:
@@ -34,7 +39,7 @@ class UserConfig:
         for field in dataclasses.fields(config):
             arg_name = field.name.replace("_", "-")
             if arg_name in d:
-                if isinstance(field.type, type) and not isinstance(d[arg_name], field.type):
+                if isinstance(field.type, type) and not issubclass(field.type, type(d[arg_name])):
                     continue
                 setattr(config, field.name, d[arg_name])
 
@@ -46,7 +51,15 @@ class UserConfig:
         paths: list[Path] = []
 
         if cli_args:
-            config.update({k.replace("_", "-"): v for k, v in cli_args.__dict__.items() if v is not None})
+            cli_dict = {k.replace("_", "-"): v for k, v in cli_args.__dict__.items() if v is not None}
+            if "transitions" in cli_dict:
+                config["transitions"] = {"include": cli_dict["transitions"]}
+                del cli_dict["transitions"]
+            if "exclude-transitions" in cli_dict:
+                config["transitions"] = config.get("transitions", {})
+                config["transitions"]["exclude"] = cli_dict["exclude-transitions"]
+                del cli_dict["exclude-transitions"]
+            config.update(cli_dict)
 
         for custom_dir in custom_dirs or []:
             paths.append(custom_dir / "slida.yaml")
@@ -60,10 +73,6 @@ class UserConfig:
                 with path.open("rt", encoding="utf8") as f:
                     try:
                         file_config: dict = yaml.safe_load(f)
-                        if "exclude-transitions" in file_config and "transitions" in config:
-                            del file_config["exclude-transitions"]
-                        if "transitions" in file_config and "all" in file_config["transitions"]:
-                            file_config["transitions"] = [t for t in file_config["transitions"] if t != "all"]
                         config = {**file_config, **config}
                     except Exception as e:
                         warnings.warn(f"Could not read YAML from {path}: {e}")

@@ -38,7 +38,7 @@ options:
                         One or more transitions NOT to use
 ```
 
-`--transitions` and `--exclude-transitions` govern which effects will be used for transitioning between images. Explicit exclusion overrides explicit inclusion. The full list of transitions is available in `slida.transitions.TRANSITION_PAIRS`.
+`--transitions` and `--exclude-transitions` govern which effects will be used for transitioning between images. The full list of transitions is available in `slida.transitions.TRANSITION_PAIRS`. Explicit exclusion overrides explicit inclusion. However, there is one special case: `--transitions all` on the command line overrides all other transition settings and simply includes all of them.
 
 Press `?` in the GUI for keyboard mapping info.
 
@@ -52,17 +52,24 @@ A file called `slida.yaml` will be looked for in the following locations, in ord
 
 If multiple config files are found, they will be merged so that arguments in a higher priority file will overwrite those in lower priority files.
 
-All command line arguments (in their long versions), except `path` and `help`, can be used in these files.
+All command line arguments (in their long versions), except `path` and `help`, can be used in these files. However, the syntax for transition settings is a little different; instead of two separate settings, it's one `transitions` object with the optional string arrays `include` and `exclude`.
 
 ### Example config file
 
 ```yaml
 recursive: true
-exclude-transitions:
-  - slide-down
-  - slide-right
-  - slide-up
-  - slide-left
+transition-duration: 0.2
+order: name
+transitions:
+  include:
+    - clockface
+    - topleft-squares
+    - flip-x
+    - radial
+  exclude:
+    - slide-down
+    - slide-right
+    - slide-up
+    - slide-left
 ```
-
-(I like to exclude the "slide" transitions as they are kind of boring.)
+(Obviously it makes no sense to both include and exclude transitions, but this is an example.)

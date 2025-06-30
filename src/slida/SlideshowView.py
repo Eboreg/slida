@@ -294,12 +294,17 @@ class SlideshowView(QGraphicsView):
 
     def __get_transition_pair_types(self):
         pairs = TRANSITION_PAIRS
+
         if self.__config.transitions is not None:
-            if "all" in self.__config.transitions:
-                return pairs
-            pairs = [p for p in pairs if p.name in self.__config.transitions]
-        if self.__config.exclude_transitions is not None:
-            pairs = [p for p in pairs if p.name not in self.__config.exclude_transitions]
+            names = {p.name for p in pairs}
+            include = set(self.__config.transitions.get("include", names))
+            exclude = set(self.__config.transitions.get("exclude", []))
+
+            if "all" not in include:
+                names &= include
+                names -= exclude
+                pairs = [p for p in pairs if p.name in names]
+
         return pairs
 
     @Slot()
