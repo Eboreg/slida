@@ -55,26 +55,26 @@ class AnimPixmapsView(QGraphicsView):
     def transition_to(
         self,
         pixmaps: PixmapList,
-        transitions: TransitionPair | None,
+        transition_pair_type: type[TransitionPair] | None,
         transition_duration: float,
     ):
         self.__next_widget.set_pixmaps(pixmaps)
         self.scene().update(self.sceneRect())
 
-        if transitions is None:
-            transitions = NOOP
+        if transition_pair_type is None:
+            transition_pair_type = NOOP
             transition_duration = 0.0
 
-        group = transitions.create_animation(
+        transition_pair = transition_pair_type(
             parent=self,
             enter_parent=self.__next_widget,
             exit_parent=self.__current_widget,
             duration=int(transition_duration * 1000),
         )
-        self.__current_widget.set_transition(transitions.exit)
-        self.__next_widget.set_transition(transitions.enter)
 
+        self.__current_widget.set_transition(transition_pair.exit)
+        self.__next_widget.set_transition(transition_pair.enter)
         self.__is_transitioning = True
 
-        group.finished.connect(self.on_transition_finished)
-        group.start()
+        transition_pair.animation_group.finished.connect(self.on_transition_finished)
+        transition_pair.animation_group.start()

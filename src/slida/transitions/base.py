@@ -20,6 +20,7 @@ _ET = TypeVar("_ET", bound=QGraphicsEffect)
 
 class Transition(QObject):
     name: str
+    animation: QAbstractAnimation
     property_name: str | None = None
     start_value: float = 0.0
     end_value: float = 1.0
@@ -30,10 +31,17 @@ class Transition(QObject):
     _progress: float
     _scaled_image: ScaledImage | None = None
 
-    def __init__(self, name: str):
-        super().__init__()
+    def __init__(self, name: str, parent: QGraphicsWidget, duration: int):
+        super().__init__(parent)
         self.name = name
         self._progress = self.start_value
+        self.animation = QPropertyAnimation(targetObject=self)
+        self.animation.setDuration(duration)
+        self.animation.setEasingCurve(self.easing)
+        self.animation.setStartValue(self.get_start_value())
+        self.animation.setEndValue(self.get_end_value())
+        self.animation.setPropertyName("progress".encode())
+        self.animation.stateChanged.connect(self.__on_animation_state_changed)
 
     @Property(float) # type: ignore
     def progress(self): # type: ignore
@@ -50,23 +58,13 @@ class Transition(QObject):
             if self.property_name:
                 self.parent().setProperty(self.property_name, value)
 
-    def create_animation(self, duration: int) -> QAbstractAnimation:
-        anim = QPropertyAnimation(targetObject=self)
-        anim.setDuration(duration)
-        anim.setEasingCurve(self.easing)
-        anim.setStartValue(self.get_start_value())
-        anim.setEndValue(self.get_end_value())
-        anim.setPropertyName("progress".encode())
-
-        return anim
-
     def get_end_value(self) -> float:
         return self.end_value
 
     def get_start_value(self) -> float:
         return self.start_value
 
-    def on_animation_finish(self):
+    def on_animation_group_finish(self):
         self.is_active = False
         parent = self.parent()
         parent.setX(0.0)
@@ -75,8 +73,14 @@ class Transition(QObject):
         parent.setOpacity(1.0)
         parent.setZValue(0.0)
 
-    def on_animation_start(self):
+    def on_animation_group_start(self):
         self.is_active = True
+
+    def on_animation_finish(self):
+        ...
+
+    def on_animation_start(self):
+        ...
 
     def on_progress(self, value: float):
         ...
@@ -103,12 +107,21 @@ class Transition(QObject):
             parent.setZValue(self.parent_z)
             parent.setVisible(False)
 
+    def __on_animation_state_changed(self, new_state: QAbstractAnimation.State, old_state: QAbstractAnimation.State):
+        if new_state == QAbstractAnimation.State.Running and old_state != new_state:
+            self.on_animation_start()
+        elif new_state == QAbstractAnimation.State.Stopped and old_state != new_state:
+            try:
+                self.on_animation_finish()
+            except RuntimeError:
+                pass
+
 
 class EffectTransition(Transition, Generic[_ET]):
     @abstractmethod
     def get_effect(self) -> _ET:
         ...
 
-    def on_animation_finish(self):
-        super().on_animation_finish()
+    def on_animation_group_finish(self):
+        super().on_animation_group_finish()
         self.get_effect().setEnabled(False)

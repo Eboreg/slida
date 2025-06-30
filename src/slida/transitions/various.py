@@ -1,4 +1,5 @@
-from PySide6.QtCore import QEasingCurve
+from PySide6.QtCore import QEasingCurve, Qt
+from PySide6.QtGui import QTransform
 
 from slida.transitions.base import Transition
 
@@ -14,8 +15,8 @@ class HingeTransition(Transition):
 class ShrinkGrowTransition(Transition):
     property_name = "scale"
 
-    def on_animation_start(self):
-        super().on_animation_start()
+    def on_animation_group_start(self):
+        super().on_animation_group_start()
         size = self.parent().size()
         self.parent().setTransformOriginPoint(size.width() / 2, size.height() / 2)
 
@@ -30,6 +31,54 @@ class FadeOut(Transition):
     end_value = 0.0
 
 
+class FlipTransition(Transition):
+    axis: Qt.Axis
+
+    def on_progress(self, value: float):
+        super().on_progress(value)
+        size = self.parent().size()
+        t = QTransform()
+        # 1. Translate so (0, 0) is in the view's center:
+        t.translate(size.width() / 2, size.height() / 2)
+        # 2. Do the transformation:
+        t.rotate(value * 90.0, self.axis, 2000.0)
+        # 3. Translate back so stuff renders where it should:
+        t.translate(-size.width() / 2, -size.height() / 2)
+        self.parent().setTransform(t)
+
+
+class FlipInTransition(FlipTransition):
+    start_value = -1.0
+    end_value = 0.0
+    easing = QEasingCurve.Type.OutBack
+
+    def on_animation_group_start(self):
+        super().on_animation_group_start()
+        self.parent().setVisible(False)
+
+    def on_animation_start(self):
+        super().on_animation_start()
+        self.parent().setVisible(True)
+
+
+class FlipXIn(FlipInTransition):
+    axis = Qt.Axis.XAxis
+
+
+class FlipXOut(FlipTransition):
+    axis = Qt.Axis.XAxis
+    easing = QEasingCurve.Type.InSine
+
+
+class FlipYIn(FlipInTransition):
+    axis = Qt.Axis.YAxis
+
+
+class FlipYOut(FlipTransition):
+    axis = Qt.Axis.YAxis
+    easing = QEasingCurve.Type.InSine
+
+
 class Grow(ShrinkGrowTransition):
     easing = QEasingCurve.Type.OutExpo
 
@@ -40,8 +89,8 @@ class HingeIn(HingeTransition):
     easing = QEasingCurve.Type.OutBack
     parent_z = 1.0
 
-    def on_animation_start(self):
-        super().on_animation_start()
+    def on_animation_group_start(self):
+        super().on_animation_group_start()
         self.parent().setTransformOriginPoint(0.0, self.parent().size().height())
 
 
@@ -49,12 +98,12 @@ class HingeOut(HingeTransition):
     start_value = 0.0
     end_value = -90.0
 
-    def on_animation_finish(self):
-        super().on_animation_finish()
+    def on_animation_group_finish(self):
+        super().on_animation_group_finish()
         self.parent().setRotation(0.0)
 
-    def on_animation_start(self):
-        super().on_animation_start()
+    def on_animation_group_start(self):
+        super().on_animation_group_start()
         size = self.parent().size()
         self.parent().setTransformOriginPoint(size.width(), size.height())
 

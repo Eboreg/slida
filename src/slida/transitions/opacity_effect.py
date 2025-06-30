@@ -104,10 +104,9 @@ class RadialOut(OpacityEffectTransition):
     easing = QEasingCurve.Type.OutCirc
     offset: tuple[float, float] = 0.0, 0.0
 
-    def create_animation(self, duration):
+    def __init__(self, name, parent, duration):
         self.offset = random.random(), random.random()
-
-        return super().create_animation(duration)
+        super().__init__(name, parent, duration)
 
     def create_brush(self, value):
         rect = self.parent().rect()

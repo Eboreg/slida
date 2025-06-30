@@ -7,7 +7,11 @@ from slida.transitions.opacity_effect import (
     MarqueeOut,
     RadialOut,
 )
-from slida.transitions.pair import SequentialTransitionPair, TransitionPair
+from slida.transitions.pair import (
+    SequentialTransitionPair,
+    TransitionPair,
+    transition_pair_factory,
+)
 from slida.transitions.slide import (
     SlideInFromBottom,
     SlideInFromLeft,
@@ -26,6 +30,10 @@ from slida.transitions.sub_image import (
 from slida.transitions.various import (
     FadeIn,
     FadeOut,
+    FlipXIn,
+    FlipXOut,
+    FlipYIn,
+    FlipYOut,
     Grow,
     HingeIn,
     HingeOut,
@@ -34,28 +42,31 @@ from slida.transitions.various import (
 )
 
 
-NOOP = TransitionPair("noop", Noop, Noop)
+# NOOP = TransitionPair("noop", Noop, Noop)
+NOOP = transition_pair_factory("noop", Noop, Noop)
 
-TRANSITION_PAIRS: list[TransitionPair] = [
-    TransitionPair("blur", BlurDecrease, BlurIncrease),
-    TransitionPair("clockface", Noop, ClockfaceOut),
-    TransitionPair("explode", ExplodeIn, Noop),
-    TransitionPair("fade", FadeIn, FadeOut),
-    TransitionPair("hinge", HingeIn, HingeOut),
-    TransitionPair("implode", Noop, ImplodeOut),
-    TransitionPair("marquee", Noop, MarqueeOut),
-    TransitionPair("radial", Noop, RadialOut),
-    TransitionPair("random-squares", RandomSquaresIn, Noop),
-    SequentialTransitionPair("shrink-grow", Grow, Shrink),
-    TransitionPair("slide-down", SlideInFromTop, SlideOutToBottom),
-    TransitionPair("slide-left", SlideInFromRight, SlideOutToLeft),
-    TransitionPair("slide-right", SlideInFromLeft, SlideOutToRight),
-    TransitionPair("slide-up", SlideInFromBottom, SlideOutToTop),
-    TransitionPair("top-squares", TopSquaresIn, Noop),
-    TransitionPair("topleft-squares", TopLeftSquaresIn, Noop),
+TRANSITION_PAIRS: list[type[TransitionPair]] = [
+    transition_pair_factory("blur", BlurDecrease, BlurIncrease),
+    transition_pair_factory("clockface", Noop, ClockfaceOut),
+    transition_pair_factory("explode", ExplodeIn, Noop),
+    transition_pair_factory("fade", FadeIn, FadeOut),
+    transition_pair_factory("flip-x", FlipXIn, FlipXOut, SequentialTransitionPair),
+    transition_pair_factory("flip-y", FlipYIn, FlipYOut, SequentialTransitionPair),
+    transition_pair_factory("hinge", HingeIn, HingeOut),
+    transition_pair_factory("implode", Noop, ImplodeOut),
+    transition_pair_factory("marquee", Noop, MarqueeOut),
+    transition_pair_factory("radial", Noop, RadialOut),
+    transition_pair_factory("random-squares", RandomSquaresIn, Noop),
+    transition_pair_factory("shrink-grow", Grow, Shrink, SequentialTransitionPair),
+    transition_pair_factory("slide-down", SlideInFromTop, SlideOutToBottom),
+    transition_pair_factory("slide-left", SlideInFromRight, SlideOutToLeft),
+    transition_pair_factory("slide-right", SlideInFromLeft, SlideOutToRight),
+    transition_pair_factory("slide-up", SlideInFromBottom, SlideOutToTop),
+    transition_pair_factory("top-squares", TopSquaresIn, Noop),
+    transition_pair_factory("topleft-squares", TopLeftSquaresIn, Noop),
 ]
 
-TRANSITION_PAIR_MAP: dict[str, TransitionPair] = {
+TRANSITION_PAIR_MAP: dict[str, type[TransitionPair]] = {
     pair.name: pair for pair in TRANSITION_PAIRS
 }
 

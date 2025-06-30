@@ -178,7 +178,12 @@ class SlideshowView(QGraphicsView):
         if history_idx >= 0 and not self.__pixmaps_view.is_transitioning:
             self.__history_idx = history_idx
             pixmaps = self.__setup_pixmaps(history_idx)
-            self.__pixmaps_view.transition_to(pixmaps, self.__get_next_transition_pair(), self.__transition_duration)
+
+            self.__pixmaps_view.transition_to(
+                pixmaps=pixmaps,
+                transition_pair_type=self.__get_next_transition_pair_type(),
+                transition_duration=self.__transition_duration
+            )
 
             if self.__timer.isActive():
                 self.__timer.start(self.real_interval_ms)
@@ -269,8 +274,8 @@ class SlideshowView(QGraphicsView):
 
         return None
 
-    def __get_next_transition_pair(self):
-        pairs = self.__get_transition_pairs()
+    def __get_next_transition_pair_type(self):
+        pairs = self.__get_transition_pair_types()
         if not pairs:
             return None
         return random.choice(pairs)
@@ -287,7 +292,7 @@ class SlideshowView(QGraphicsView):
         painter.drawText(image.rect(), Qt.AlignmentFlag.AlignCenter, "No images found!")
         return image
 
-    def __get_transition_pairs(self):
+    def __get_transition_pair_types(self):
         pairs = TRANSITION_PAIRS
         if self.__config.transitions is not None:
             if "all" in self.__config.transitions:
