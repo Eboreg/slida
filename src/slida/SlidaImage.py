@@ -2,9 +2,11 @@ from PySide6.QtGui import QImage, QPixmap
 
 
 class SlidaImage:
-    def __init__(self, image: QPixmap | QImage, filename: str = ""):
+    # def __init__(self, image: QPixmap | QImage, filename: str = ""):
+    def __init__(self, filename: str = ""):
         self.filename = filename
-        self.__image = QPixmap(image) if isinstance(image, QImage) else image
+        # self.__image = QPixmap(image) if isinstance(image, QImage) else image
+        self.__image = QPixmap(filename)
 
         if self.__image.isNull():
             raise ValueError(f"{filename} is a null pixmap")

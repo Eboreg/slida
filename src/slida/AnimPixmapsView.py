@@ -1,18 +1,24 @@
+import tracemalloc
+
 from PySide6.QtCore import Qt, Slot
-from PySide6.QtWidgets import QGraphicsScene, QGraphicsView
+from PySide6.QtWidgets import QGraphicsItem, QGraphicsScene, QGraphicsView, QWidget
 
 from slida.AnimPixmapsWidget import AnimPixmapsWidget
 from slida.PixmapList import PixmapList
 from slida.transitions import NOOP, TransitionPair
 
 
+tracemalloc.start(10)
+
+
 class AnimPixmapsView(QGraphicsView):
     __current_widget: AnimPixmapsWidget
     __next_widget: AnimPixmapsWidget
     __is_transitioning: bool = False
+    __snapshot: tracemalloc.Snapshot | None = None
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, parent: QWidget | None = None):
+        super().__init__(parent)
 
         scene = QGraphicsScene(self)
 
@@ -39,11 +45,39 @@ class AnimPixmapsView(QGraphicsView):
         self.__is_transitioning = False
         self.__next_widget.stackBefore(self.__current_widget)
 
+        # self.snapshot()
+
+    def snapshot(self):
+        snapshot = tracemalloc.take_snapshot()
+        snapshot = snapshot.filter_traces((
+            tracemalloc.Filter(False, "<frozen importlib._bootstrap>"),
+            tracemalloc.Filter(False, "<frozen importlib._bootstrap_external>"),
+            tracemalloc.Filter(False, "<unknown>"),
+        ))
+
+        if self.__snapshot:
+            diffs = snapshot.compare_to(self.__snapshot, "traceback")
+            for diff in diffs[:10]:
+                print("%s memory blocks: %.1f KiB" % (diff.count, diff.size / 1024))
+                for line in diff.traceback.format():
+                    print(line)
+                print("")
+
+            print("\n============================================================\n")
+
+        self.__snapshot = snapshot
+
+    def log_item(self, item: QGraphicsItem, indent: int = 0):
+        print((" " * indent) + str(item))
+        for child in item.childItems():
+            self.log_item(child, indent + 4)
+
     def resizeEvent(self, event):
-        viewport_rect = self.viewport().rect()
+        # viewport_rect = self.viewport().rect()
         geometry = self.geometry()
 
-        self.scene().setSceneRect(viewport_rect)
+        # self.scene().setSceneRect(viewport_rect)
+        self.scene().setSceneRect(geometry)
         self.__current_widget.setGeometry(geometry)
         self.__next_widget.setGeometry(geometry)
         super().resizeEvent(event)

@@ -9,7 +9,7 @@ from slida.SlidaImage import SlidaImage
 
 class SlidaImages:
     images: list[SlidaImage]
-    __cache: ScaledImage | None = None
+    # __cache: ScaledImage | None = None
 
     def __init__(self, images: list[SlidaImage] | None = None):
         self.images = images or []
@@ -29,7 +29,7 @@ class SlidaImages:
 
     def add(self, image: SlidaImage) -> Self:
         self.images.append(image)
-        self.__cache = None
+        # self.__cache = None
         return self
 
     def copy(self) -> "SlidaImages":
@@ -40,12 +40,12 @@ class SlidaImages:
         return (bounds.width() * bounds.height()) - (size.width() * size.height())
 
     def get_scaled_image(self, bounds: QSizeF) -> ScaledImage:
-        if self.__cache and self.__cache.size == bounds:
-            return self.__cache
+        # if self.__cache and self.__cache.size == bounds:
+        #     return self.__cache
 
         image = self.__get_combined_image(bounds)
         scaled_image = ScaledImage(size=bounds, image=image)
-        self.__cache = scaled_image
+        # self.__cache = scaled_image
 
         return scaled_image
 

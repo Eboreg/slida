@@ -7,6 +7,7 @@ from PySide6.QtCore import (
     QEasingCurve,
     QObject,
     QPropertyAnimation,
+    Slot,
 )
 from PySide6.QtGui import QPainter
 from PySide6.QtWidgets import QGraphicsEffect, QGraphicsWidget, QWidget
@@ -42,13 +43,7 @@ class Transition(QObject):
             parent.setZValue(self.parent_z)
             parent.setVisible(False)
 
-        self.animation = QPropertyAnimation(targetObject=self)
-        self.animation.setDuration(duration)
-        self.animation.setEasingCurve(self.easing)
-        self.animation.setStartValue(self.get_start_value())
-        self.animation.setEndValue(self.get_end_value())
-        self.animation.setPropertyName("progress".encode())
-        self.animation.stateChanged.connect(self.__on_animation_state_changed)
+        self.animation = self.create_animation(duration)
 
     @Property(float) # type: ignore
     def progress(self): # type: ignore
@@ -66,7 +61,18 @@ class Transition(QObject):
                 self.parent().setProperty(self.property_name, value)
 
     def cleanup(self):
-        ...
+        self.animation.stateChanged.disconnect(self.__on_animation_state_changed)
+
+    def create_animation(self, duration: int) -> QAbstractAnimation:
+        animation = QPropertyAnimation(parent=self, targetObject=self)
+        animation.setDuration(duration)
+        animation.setEasingCurve(self.easing)
+        animation.setStartValue(self.get_start_value())
+        animation.setEndValue(self.get_end_value())
+        animation.setPropertyName("progress".encode())
+        animation.stateChanged.connect(self.__on_animation_state_changed)
+
+        return animation
 
     def get_end_value(self) -> float:
         return self.end_value
@@ -104,6 +110,7 @@ class Transition(QObject):
     def set_scaled_image(self, value: ScaledImage):
         self._scaled_image = value
 
+    @Slot(QAbstractAnimation.State, QAbstractAnimation.State)
     def __on_animation_state_changed(self, new_state: QAbstractAnimation.State, old_state: QAbstractAnimation.State):
         if new_state == QAbstractAnimation.State.Running and old_state != new_state:
             self.on_animation_start()

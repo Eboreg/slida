@@ -50,6 +50,7 @@ disable = [
     "too-many-instance-attributes",
     "too-many-locals",
     "too-many-positional-arguments",
+    "too-many-public-methods",
     "too-many-return-statements",
     "too-many-statements",
     "unused-argument",
@@ -81,3 +82,8 @@ show_error_codes = true
 ignore_missing_imports = true
 files = "."
 check_untyped_defs = true
+
+[tool.pyright]
+exclude = ["**/__pycache__", "build", "**/.*", ".venv"]
+typeCheckingMode = "basic"
+ignore = [".venv"]

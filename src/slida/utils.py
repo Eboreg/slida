@@ -1,7 +1,11 @@
 import re
 from pathlib import Path
+from typing import TypeVar
 
 from PIL import Image
+
+
+_NT = TypeVar("_NT", int, float)
 
 
 class CaseType:
@@ -71,7 +75,7 @@ def image_ratio(file: Path | str) -> float:
         return image.width / image.height
 
 
-def coerce_between(value: float, min_value: float, max_value: float) -> float:
+def coerce_between(value: _NT, min_value: _NT, max_value: _NT) -> _NT:
     if value < min_value:
         return min_value
     if value > max_value:
