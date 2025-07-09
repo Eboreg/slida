@@ -1,4 +1,4 @@
-from PySide6.QtCore import QSizeF
+from PyQt6.QtCore import QSizeF
 
 from slida.ScaledImage import ScaledImage
 from slida.SlidaImage import SlidaImage

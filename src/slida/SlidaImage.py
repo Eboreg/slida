@@ -1,4 +1,4 @@
-from PySide6.QtGui import QImage, QPixmap
+from PyQt6.QtGui import QImage, QPixmap
 
 
 class SlidaImage:

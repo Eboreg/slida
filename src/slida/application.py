@@ -2,8 +2,8 @@ import argparse
 import sys
 from pathlib import Path
 
-from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QApplication
+from PyQt6.QtGui import QIcon
+from PyQt6.QtWidgets import QApplication
 
 from slida import __version__
 from slida.DirScanner import FileOrder

@@ -1,4 +1,4 @@
-from PySide6.QtCore import QEasingCurve
+from PyQt6.QtCore import QEasingCurve
 
 from slida.transitions.base import Transition
 

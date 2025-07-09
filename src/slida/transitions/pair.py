@@ -1,12 +1,12 @@
-from PySide6.QtCore import (
+from PyQt6.QtCore import (
     QAbstractAnimation,
     QAnimationGroup,
     QObject,
     QParallelAnimationGroup,
     QSequentialAnimationGroup,
-    Slot,
+    pyqtSlot,
 )
-from PySide6.QtWidgets import QGraphicsWidget
+from PyQt6.QtWidgets import QGraphicsWidget
 
 from slida.transitions.base import Transition
 from slida.utils import KebabCase, PascalCase, convert_case
@@ -37,7 +37,7 @@ class TransitionPair(QObject):
         self.animation_group.addAnimation(self.enter.animation)
         self.animation_group.stateChanged.connect(self.on_animation_state_changed)
 
-    @Slot(QAbstractAnimation.State, QAbstractAnimation.State)
+    @pyqtSlot(QAbstractAnimation.State, QAbstractAnimation.State)
     def on_animation_state_changed(self, new_state: QAbstractAnimation.State, old_state: QAbstractAnimation.State):
         if new_state == QAbstractAnimation.State.Running and old_state != new_state:
             # print("start:", self.name)

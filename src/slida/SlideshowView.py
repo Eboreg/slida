@@ -2,8 +2,8 @@ import math
 import random
 
 import PIL
-from PySide6.QtCore import QPointF, QProcess, QRectF, QSize, Qt, QTimer, Slot
-from PySide6.QtGui import (
+from PyQt6.QtCore import QPointF, QProcess, QRectF, QSize, Qt, QTimer, pyqtSlot
+from PyQt6.QtGui import (
     QContextMenuEvent,
     QKeyEvent,
     QMouseEvent,
@@ -12,7 +12,7 @@ from PySide6.QtGui import (
     QResizeEvent,
     QWheelEvent,
 )
-from PySide6.QtWidgets import QGraphicsScene, QGraphicsView, QMenu, QWidget
+from PyQt6.QtWidgets import QGraphicsScene, QGraphicsView, QMenu, QWidget
 
 from slida.AnimPixmapsView import AnimPixmapsView
 from slida.DirScanner import DirScanner
@@ -149,7 +149,7 @@ class SlideshowView(QGraphicsView):
         toast = Toast(self, timeout)
         self.__toasts.append(toast)
 
-        @Slot()
+        @pyqtSlot()
         def on_hidden():
             if not keep:
                 self.__toasts.remove(toast)
@@ -158,11 +158,11 @@ class SlideshowView(QGraphicsView):
                 toast.resized.disconnect()
             self.__place_toasts()
 
-        @Slot()
+        @pyqtSlot()
         def on_resized():
             self.__place_toasts()
 
-        @Slot()
+        @pyqtSlot()
         def on_shown():
             self.__place_toasts()
 

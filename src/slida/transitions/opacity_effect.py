@@ -2,14 +2,14 @@ import math
 import random
 from abc import abstractmethod
 
-from PySide6.QtCore import QEasingCurve, QPoint, QPointF, Qt
-from PySide6.QtGui import (
+from PyQt6.QtCore import QEasingCurve, QPoint, QPointF, Qt
+from PyQt6.QtGui import (
     QConicalGradient,
     QGradient,
     QLinearGradient,
     QRadialGradient,
 )
-from PySide6.QtWidgets import QGraphicsOpacityEffect
+from PyQt6.QtWidgets import QGraphicsOpacityEffect
 
 from slida.transitions.base import EffectTransition
 from slida.utils import coerce_between

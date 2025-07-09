@@ -1,5 +1,5 @@
-from PySide6.QtCore import QEasingCurve, Qt
-from PySide6.QtGui import QTransform
+from PyQt6.QtCore import QEasingCurve, Qt
+from PyQt6.QtGui import QTransform
 
 from slida.transitions.base import Transition
 

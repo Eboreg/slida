@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from math import ceil, floor
 
-from PySide6.QtCore import QAbstractAnimation, QEasingCurve, QRect, QSequentialAnimationGroup
-from PySide6.QtGui import QImage, QPainter
+from PyQt6.QtCore import QAbstractAnimation, QEasingCurve, QRect, QSequentialAnimationGroup
+from PyQt6.QtGui import QImage, QPainter
 
 import numpy as np
 from slida.ScaledImage import ScaledImage

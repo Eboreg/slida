@@ -1,12 +1,12 @@
-from PySide6.QtCore import QSize, Qt, QTimer, Signal, Slot
-from PySide6.QtGui import QPalette
-from PySide6.QtWidgets import QDockWidget, QLabel
+from PyQt6.QtCore import QSize, Qt, QTimer, pyqtSlot, pyqtSignal
+from PyQt6.QtGui import QPalette
+from PyQt6.QtWidgets import QDockWidget, QLabel
 
 
 class Toast(QDockWidget):
-    hidden = Signal()
-    resized = Signal(QSize)
-    shown = Signal()
+    hidden = pyqtSignal()
+    resized = pyqtSignal(QSize)
+    shown = pyqtSignal()
 
     def __init__(self, parent, timeout: int | None = 3000, background: QPalette.ColorRole = QPalette.ColorRole.Accent):
         super().__init__(parent)
@@ -40,7 +40,7 @@ class Toast(QDockWidget):
         self.label.setMinimumHeight(20 + (10 * len(rows)))
         self.label.setText(text)
 
-    @Slot()
+    @pyqtSlot()
     def on_timeout(self):
         self.hide()
 

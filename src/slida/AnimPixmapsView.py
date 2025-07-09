@@ -1,7 +1,7 @@
 import tracemalloc
 
-from PySide6.QtCore import Qt, Slot
-from PySide6.QtWidgets import QGraphicsItem, QGraphicsScene, QGraphicsView, QWidget
+from PyQt6.QtCore import Qt, pyqtSlot
+from PyQt6.QtWidgets import QGraphicsItem, QGraphicsScene, QGraphicsView, QWidget
 
 from slida.AnimPixmapsWidget import AnimPixmapsWidget
 from slida.PixmapList import PixmapList
@@ -37,7 +37,7 @@ class AnimPixmapsView(QGraphicsView):
     def is_transitioning(self):
         return self.__is_transitioning
 
-    @Slot()
+    @pyqtSlot()
     def on_transition_finished(self):
         old_current = self.__current_widget
         self.__current_widget = self.__next_widget

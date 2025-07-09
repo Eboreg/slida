@@ -1,16 +1,16 @@
 from abc import abstractmethod
 from typing import Generic, TypeVar
 
-from PySide6.QtCore import (
-    Property,
+from PyQt6.QtCore import (
     QAbstractAnimation,
     QEasingCurve,
     QObject,
     QPropertyAnimation,
-    Slot,
+    pyqtSlot,
+    pyqtProperty,
 )
-from PySide6.QtGui import QPainter
-from PySide6.QtWidgets import QGraphicsEffect, QGraphicsWidget, QWidget
+from PyQt6.QtGui import QPainter
+from PyQt6.QtWidgets import QGraphicsEffect, QGraphicsWidget, QWidget
 
 from slida.ScaledImage import ScaledImage
 
@@ -110,7 +110,7 @@ class Transition(QObject):
     def set_scaled_image(self, value: ScaledImage):
         self._scaled_image = value
 
-    @Slot(QAbstractAnimation.State, QAbstractAnimation.State)
+    @pyqtSlot(QAbstractAnimation.State, QAbstractAnimation.State)
     def __on_animation_state_changed(self, new_state: QAbstractAnimation.State, old_state: QAbstractAnimation.State):
         if new_state == QAbstractAnimation.State.Running and old_state != new_state:
             self.on_animation_start()

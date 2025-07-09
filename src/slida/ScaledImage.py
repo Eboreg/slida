@@ -1,5 +1,5 @@
-from PySide6.QtCore import QPointF, QSizeF, Qt
-from PySide6.QtGui import QImage, QPainter
+from PyQt6.QtCore import QPointF, QSizeF, Qt
+from PyQt6.QtGui import QImage, QPainter
 
 
 class ScaledImage:

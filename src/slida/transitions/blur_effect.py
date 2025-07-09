@@ -1,5 +1,5 @@
-from PySide6.QtCore import QEasingCurve
-from PySide6.QtWidgets import QGraphicsBlurEffect
+from PyQt6.QtCore import QEasingCurve
+from PyQt6.QtWidgets import QGraphicsBlurEffect
 
 from slida.transitions.base import EffectTransition
 
