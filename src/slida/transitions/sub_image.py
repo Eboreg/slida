@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from math import ceil, floor
 
-from PySide6.QtCore import QAbstractAnimation, QEasingCurve, QRect, QSequentialAnimationGroup
+from PySide6.QtCore import QAbstractAnimation, QEasingCurve, QObject, QRect, QSequentialAnimationGroup
 from PySide6.QtGui import QImage, QPainter
 
 import numpy as np
@@ -9,13 +9,21 @@ from slida.ScaledImage import ScaledImage
 from slida.transitions.base import Transition
 
 
-@dataclass
-class SubImage:
+# @dataclass
+class SubImage(QObject):
     image: QImage
     geometry: QRect
     row: int
     column: int
     filled: bool = False
+
+    def __init__(self, parent: QObject, image: QImage, geometry: QRect, row: int, column: int, filled: bool = False):
+        super().__init__(parent)
+        self.image = image
+        self.geometry = geometry
+        self.row = row
+        self.column = column
+        self.filled = filled
 
     def toggle_filled(self):
         self.filled = not self.filled
@@ -57,10 +65,15 @@ class SubImageTransition(Transition):
             for y in range(self.rows):
                 for x in range(self.columns):
                     geometry = QRect(floor(x * width), floor(y * height), ceil(width), ceil(height))
-                    subs.append(SubImage(image=image.copy(geometry), geometry=geometry, row=y, column=x))
+                    subs.append(SubImage(parent=self, image=image.copy(geometry), geometry=geometry, row=y, column=x))
 
         self.__subs = subs
         return subs
+
+    def deleteLater(self):
+        for sub in self.__subs or []:
+            sub.deleteLater()
+        super().deleteLater()
 
     def get_filled_subs(self):
         if self._progress in (0.0, 1.0):

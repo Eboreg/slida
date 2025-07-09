@@ -74,6 +74,11 @@ class Transition(QObject):
 
         return animation
 
+    def deleteLater(self):
+        if self._scaled_image:
+            self._scaled_image.deleteLater()
+        super().deleteLater()
+
     def get_end_value(self) -> float:
         return self.end_value
 

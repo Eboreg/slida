@@ -1,8 +1,8 @@
-from PySide6.QtCore import QPointF, QSizeF, Qt
+from PySide6.QtCore import QObject, QPointF, QSizeF, Qt
 from PySide6.QtGui import QImage, QPainter
 
 
-class ScaledImage:
+class ScaledImage(QObject):
     size: QSizeF
     columns: int = 0
     rows: int = 0
@@ -10,7 +10,8 @@ class ScaledImage:
     # __cached_image: QImage | None = None
     # __cached_image_no_borders: QImage | None = None
 
-    def __init__(self, size: QSizeF, image: QImage):
+    def __init__(self, parent: QObject, size: QSizeF, image: QImage):
+        super().__init__(parent)
         self.image = image
         self.size = size
 

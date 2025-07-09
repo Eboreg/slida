@@ -1,9 +1,11 @@
+from PySide6.QtCore import QObject
 from PySide6.QtGui import QImage, QPixmap
 
 
-class SlidaImage:
+class SlidaImage(QObject):
     # def __init__(self, image: QPixmap | QImage, filename: str = ""):
-    def __init__(self, filename: str = ""):
+    def __init__(self, parent: QObject, filename: str = ""):
+        super().__init__(parent)
         self.filename = filename
         # self.__image = QPixmap(image) if isinstance(image, QImage) else image
         self.__image = QPixmap(filename)

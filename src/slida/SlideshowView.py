@@ -202,7 +202,7 @@ class SlideshowView(QGraphicsView):
             elif combo.key() == Qt.Key.Key_Question:
                 self.toggle_help_toast()
 
-    def mouseMoveEvent(self, event: QMouseEvent):
+    def _mouseMoveEvent(self, event: QMouseEvent):
         if event.buttons():
             if not self.__drag_tracker:
                 self.__drag_tracker = DragTracker(event.position(), event.timestamp())
@@ -228,15 +228,16 @@ class SlideshowView(QGraphicsView):
                     # self.viewport().move(pos.x() + 10, pos.y() + 10)
                     # self.translate(self.__drag_tracker.latest_diff.x(), self.__drag_tracker.latest_diff.y())
 
-    def mousePressEvent(self, event: QMouseEvent):
+    def _mousePressEvent(self, event: QMouseEvent):
         super().mousePressEvent(event)
 
     def mouseReleaseEvent(self, event: QMouseEvent):
-        if self.__drag_tracker:
-            tracker = self.__drag_tracker
-            self.__drag_tracker = None
-            if tracker.total_distance > 10:
-                return
+        print("mouserelease")
+        # if self.__drag_tracker:
+        #     tracker = self.__drag_tracker
+        #     self.__drag_tracker = None
+        #     if tracker.total_distance > 10:
+        #         return
 
         if event.button() == Qt.MouseButton.LeftButton:
             self.move_by(1)
@@ -317,8 +318,7 @@ class SlideshowView(QGraphicsView):
         return False
 
     def resizeEvent(self, event: QResizeEvent):
-        # rect = self.viewport().rect()
-        rect = self.rect()
+        rect = self.viewport().rect()
         self.scene().setSceneRect(rect)
         self.__pixmaps_view.setFixedSize(rect.size())
         for toast in self.__toasts:
@@ -370,7 +370,7 @@ class SlideshowView(QGraphicsView):
             try:
                 if max_ratio is None or image_ratio(file) <= max_ratio:
                     # return SlidaImage(QPixmap(file), file)
-                    return SlidaImage(file)
+                    return SlidaImage(self, file)
             except (PIL.UnidentifiedImageError, ValueError):
                 self.__initial_files.remove(file)
             finally:
@@ -443,14 +443,14 @@ class SlideshowView(QGraphicsView):
 
     def __setup_pixmaps(self, history_idx: int) -> PixmapList:
         files = self.__get_history_entry(history_idx)
-        pixmaps = PixmapList(self.size().toSizeF())
+        pixmaps = PixmapList(self, self.size().toSizeF())
         filenames = iter(files)
 
         while self.__initial_files and (len(pixmaps) == 0 or not self.__config.no_tiling) and pixmaps.can_fit_more():
             file = next(filenames, None)
             if file:
                 # image = SlidaImage(QPixmap(file), file)
-                image = SlidaImage(file)
+                image = SlidaImage(self, file)
             else:
                 image = self.__get_next_image(max_ratio=pixmaps.fitting_image_max_ratio())
                 if image:

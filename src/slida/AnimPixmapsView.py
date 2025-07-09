@@ -73,11 +73,10 @@ class AnimPixmapsView(QGraphicsView):
             self.log_item(child, indent + 4)
 
     def resizeEvent(self, event):
-        # viewport_rect = self.viewport().rect()
+        viewport_rect = self.viewport().rect()
         geometry = self.geometry()
 
-        # self.scene().setSceneRect(viewport_rect)
-        self.scene().setSceneRect(geometry)
+        self.scene().setSceneRect(viewport_rect)
         self.__current_widget.setGeometry(geometry)
         self.__next_widget.setGeometry(geometry)
         super().resizeEvent(event)

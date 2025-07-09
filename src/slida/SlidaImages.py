@@ -1,17 +1,18 @@
 from typing import Self
 
-from PySide6.QtCore import QPoint, QSizeF, Qt
+from PySide6.QtCore import QObject, QPoint, QSizeF, Qt
 from PySide6.QtGui import QImage, QPainter
 
 from slida.ScaledImage import ScaledImage
 from slida.SlidaImage import SlidaImage
 
 
-class SlidaImages:
+class SlidaImages(QObject):
     images: list[SlidaImage]
     # __cache: ScaledImage | None = None
 
-    def __init__(self, images: list[SlidaImage] | None = None):
+    def __init__(self, parent: QObject, images: list[SlidaImage] | None = None):
+        super().__init__(parent)
         self.images = images or []
 
     def __iter__(self):
@@ -33,7 +34,12 @@ class SlidaImages:
         return self
 
     def copy(self) -> "SlidaImages":
-        return SlidaImages(self.images.copy())
+        return SlidaImages(self.parent(), self.images.copy())
+
+    def deleteLater(self):
+        for image in self.images:
+            image.deleteLater()
+        super().deleteLater()
 
     def get_empty_area(self, bounds: QSizeF) -> float:
         size = self.get_size(bounds)
@@ -44,7 +50,7 @@ class SlidaImages:
         #     return self.__cache
 
         image = self.__get_combined_image(bounds)
-        scaled_image = ScaledImage(size=bounds, image=image)
+        scaled_image = ScaledImage(parent=self, size=bounds, image=image)
         # self.__cache = scaled_image
 
         return scaled_image

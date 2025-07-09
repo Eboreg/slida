@@ -1,16 +1,17 @@
-from PySide6.QtCore import QSizeF
+from PySide6.QtCore import QObject, QSizeF
 
 from slida.ScaledImage import ScaledImage
 from slida.SlidaImage import SlidaImage
 from slida.SlidaImages import SlidaImages
 
 
-class PixmapList:
+class PixmapList(QObject):
     __images: SlidaImages
     __bounds: QSizeF
 
-    def __init__(self, bounds: QSizeF):
-        self.__images = SlidaImages()
+    def __init__(self, parent: QObject, bounds: QSizeF):
+        super().__init__(parent)
+        self.__images = SlidaImages(self)
         self.__bounds = bounds
 
     def __len__(self):
@@ -26,6 +27,10 @@ class PixmapList:
     def can_fit_more(self) -> bool:
         bounds_ratio = self.__bounds.width() / self.__bounds.height()
         return bounds_ratio - self.__images.aspect_ratio >= 0.4
+
+    def deleteLater(self):
+        self.__images.deleteLater()
+        super().deleteLater()
 
     def fitting_image_max_ratio(self) -> float | None:
         max_width = self.__bounds.width()
@@ -45,7 +50,7 @@ class PixmapList:
         return 0.0
 
     def get_scaled_image(self, bounds: QSizeF) -> ScaledImage:
-        images = SlidaImages()
+        images = SlidaImages(self)
 
         for image in self.__images.images:
             if images.get_empty_area(self.__bounds) >= images.copy().add(image).get_empty_area(self.__bounds):

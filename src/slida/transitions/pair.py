@@ -37,6 +37,12 @@ class TransitionPair(QObject):
         self.animation_group.addAnimation(self.enter.animation)
         self.animation_group.stateChanged.connect(self.on_animation_state_changed)
 
+    def deleteLater(self):
+        self.enter.deleteLater()
+        self.exit.deleteLater()
+        self.animation_group.deleteLater()
+        super().deleteLater()
+
     @Slot(QAbstractAnimation.State, QAbstractAnimation.State)
     def on_animation_state_changed(self, new_state: QAbstractAnimation.State, old_state: QAbstractAnimation.State):
         if new_state == QAbstractAnimation.State.Running and old_state != new_state:

@@ -24,6 +24,8 @@ class AnimPixmapsWidget(QGraphicsWidget):
                 painter.drawImage(self.rect(), scaled_image.get_image())
 
     def set_pixmaps(self, pixmaps: PixmapList):
+        if self.__pixmaps:
+            self.__pixmaps.deleteLater()
         self.__pixmaps = pixmaps
 
     def set_transition(self, transition: Transition):
