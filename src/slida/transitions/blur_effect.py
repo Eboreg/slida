@@ -32,11 +32,11 @@ class BlurTransition(EffectTransition[QGraphicsBlurEffect]):
 
 
 class BlurDecrease(BlurTransition):
-    start_value = 100.0
-    end_value = 0.0
     easing = QEasingCurve.Type.InBounce
+    end_value = 0.0
+    start_value = 100.0
 
 
 class BlurIncrease(BlurTransition):
-    end_value = 100.0
     easing = QEasingCurve.Type.InCubic
+    end_value = 100.0

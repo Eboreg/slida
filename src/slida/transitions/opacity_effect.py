@@ -10,15 +10,18 @@ from PySide6.QtGui import (
     QRadialGradient,
 )
 from PySide6.QtWidgets import QGraphicsOpacityEffect
+from klaatu_python.utils import coerce_between
 
 from slida.transitions.base import EffectTransition
-from slida.utils import coerce_between
 
 
 class OpacityEffectTransition(EffectTransition[QGraphicsOpacityEffect]):
     @abstractmethod
     def create_brush(self, value: float) -> QGradient:
         ...
+
+    def get_black_pos(self, progress: float) -> float:
+        return progress
 
     def get_effect(self):
         parent = self.parent()
@@ -29,6 +32,9 @@ class OpacityEffectTransition(EffectTransition[QGraphicsOpacityEffect]):
             parent.setGraphicsEffect(effect)
 
         return effect
+
+    def get_transparent_pos(self, progress: float) -> float:
+        return progress
 
     def on_progress(self, value):
         super().on_progress(value)
@@ -45,12 +51,6 @@ class OpacityEffectTransition(EffectTransition[QGraphicsOpacityEffect]):
             effect.setOpacityMask(brush)
         else:
             effect.setEnabled(False)
-
-    def get_black_pos(self, progress: float) -> float:
-        return progress
-
-    def get_transparent_pos(self, progress: float) -> float:
-        return progress
 
 
 class ExplodeImplodeTransition(OpacityEffectTransition):
@@ -83,8 +83,8 @@ class ExplodeIn(ExplodeImplodeTransition):
 
 class ImplodeOut(ExplodeImplodeTransition):
     easing = QEasingCurve.Type.OutBounce
-    start_value = 1.0
     end_value = 0.0
+    start_value = 1.0
 
 
 class MarqueeOut(OpacityEffectTransition):

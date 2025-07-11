@@ -26,9 +26,9 @@ class FadeIn(Transition):
 
 
 class FadeOut(Transition):
+    end_value = 0.0
     property_name = "opacity"
     start_value = 1.0
-    end_value = 0.0
 
     def cleanup(self):
         super().cleanup()
@@ -49,12 +49,13 @@ class FlipTransition(Transition):
         # 3. Translate back so stuff renders where it should:
         t.translate(-size.width() / 2, -size.height() / 2)
         self.parent().setTransform(t)
+        self.parent().setVisible(True)
 
 
 class FlipInTransition(FlipTransition):
-    start_value = -1.0
-    end_value = 0.0
     easing = QEasingCurve.Type.OutBack
+    end_value = 0.0
+    start_value = -1.0
 
     def on_animation_group_start(self):
         super().on_animation_group_start()
@@ -94,10 +95,10 @@ class Grow(ShrinkGrowTransition):
 
 
 class HingeIn(HingeTransition):
-    start_value = -90.0
-    end_value = 0.0
     easing = QEasingCurve.Type.OutBack
+    end_value = 0.0
     parent_z = 1.0
+    start_value = -90.0
 
     def on_animation_group_start(self):
         super().on_animation_group_start()
@@ -105,8 +106,8 @@ class HingeIn(HingeTransition):
 
 
 class HingeOut(HingeTransition):
-    start_value = 0.0
     end_value = -90.0
+    start_value = 0.0
 
     def cleanup(self):
         super().cleanup()
@@ -123,9 +124,9 @@ class Noop(Transition):
 
 
 class Shrink(ShrinkGrowTransition):
+    easing = QEasingCurve.Type.OutSine
     end_value = 0.0
     start_value = 1.0
-    easing = QEasingCurve.Type.OutSine
 
     def cleanup(self):
         super().cleanup()

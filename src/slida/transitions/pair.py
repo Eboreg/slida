@@ -1,3 +1,4 @@
+from typing import TypeVar, cast
 from PySide6.QtCore import (
     QAbstractAnimation,
     QAnimationGroup,
@@ -7,53 +8,66 @@ from PySide6.QtCore import (
     Slot,
 )
 from PySide6.QtWidgets import QGraphicsWidget
+from klaatu_python.case import KebabCase, PascalCase, convert_case
 
+from slida.debug import add_live_object, remove_live_object
 from slida.transitions.base import Transition
-from slida.utils import KebabCase, PascalCase, convert_case
+
+
+_TP = TypeVar("_TP", bound="TransitionPair")
 
 
 class TransitionPair(QObject):
-    name: str
-    enter: Transition
-    exit: Transition
     animation_group: QAnimationGroup
-
     enter_class: type[Transition]
     exit_class: type[Transition]
+    name: str
+
     animation_group_type: type[QAnimationGroup] = QParallelAnimationGroup
+    enter: Transition | None = None
+    exit: Transition | None = None
 
     def __init__(
         self,
         parent: QObject,
-        enter_parent: QGraphicsWidget,
-        exit_parent: QGraphicsWidget,
+        enter_parent: QGraphicsWidget | None,
+        exit_parent: QGraphicsWidget | None,
         duration: int,
     ):
         super().__init__(parent)
-        self.enter = self.enter_class(name=self.name, parent=enter_parent, duration=duration)
-        self.exit = self.exit_class(name=self.name, parent=exit_parent, duration=duration)
         self.animation_group = self.animation_group_type(parent)
-        self.animation_group.addAnimation(self.exit.animation)
-        self.animation_group.addAnimation(self.enter.animation)
+
+        add_live_object(id(self), self.__class__.__name__)
+
+        if exit_parent:
+            self.exit = self.exit_class(name=self.name, parent=exit_parent, duration=duration)
+            self.animation_group.addAnimation(self.exit.animation)
+        if enter_parent:
+            self.enter = self.enter_class(name=self.name, parent=enter_parent, duration=duration)
+            self.animation_group.addAnimation(self.enter.animation)
+
         self.animation_group.stateChanged.connect(self.on_animation_state_changed)
 
     def deleteLater(self):
-        self.enter.deleteLater()
-        self.exit.deleteLater()
+        remove_live_object(id(self))
         self.animation_group.deleteLater()
         super().deleteLater()
 
     @Slot(QAbstractAnimation.State, QAbstractAnimation.State)
     def on_animation_state_changed(self, new_state: QAbstractAnimation.State, old_state: QAbstractAnimation.State):
         if new_state == QAbstractAnimation.State.Running and old_state != new_state:
-            # print("start:", self.name)
-            self.enter.on_animation_group_start()
-            self.exit.on_animation_group_start()
+            if self.enter:
+                self.enter.on_animation_group_start()
+            if self.exit:
+                self.exit.on_animation_group_start()
         elif new_state == QAbstractAnimation.State.Stopped and old_state != new_state:
             try:
-                self.enter.on_animation_group_finish()
-                self.exit.on_animation_group_finish()
+                if self.enter:
+                    self.enter.on_animation_group_finish()
+                if self.exit:
+                    self.exit.on_animation_group_finish()
                 self.animation_group.stateChanged.disconnect(self.on_animation_state_changed)
+                self.deleteLater()
             except RuntimeError:
                 pass
 
@@ -69,9 +83,9 @@ def transition_pair_factory(
     name: str,
     enter_class: type[Transition],
     exit_class: type[Transition],
-    pair_class: type[TransitionPair] = TransitionPair,
-):
-    return type(
+    pair_class: type[_TP] = TransitionPair,
+) -> type[_TP]:
+    return cast(type[_TP], type(
         convert_case(name, source=KebabCase, target=PascalCase),
         (pair_class,),
         {
@@ -79,4 +93,4 @@ def transition_pair_factory(
             "enter_class": enter_class,
             "exit_class": exit_class,
         }
-    )
+    ))

@@ -1,27 +1,24 @@
 import math
 import random
 
-import PIL
 from PySide6.QtCore import QPointF, QProcess, QRectF, QSize, Qt, QTimer, Slot
 from PySide6.QtGui import (
     QContextMenuEvent,
     QKeyEvent,
     QMouseEvent,
-    QPainter,
-    QPixmap,
     QResizeEvent,
     QWheelEvent,
 )
 from PySide6.QtWidgets import QGraphicsScene, QGraphicsView, QMenu, QWidget
+from klaatu_python.utils import coerce_between
 
 from slida.AnimPixmapsView import AnimPixmapsView
 from slida.DirScanner import DirScanner
-from slida.PixmapList import PixmapList
-from slida.SlidaImage import SlidaImage
+from slida.ImageFileList import ImageFileList
 from slida.Toast import Toast
+from slida.debug import add_live_object, print_live_objects, remove_live_object
 from slida.transitions import TRANSITION_PAIRS
 from slida.UserConfig import UserConfig
-from slida.utils import coerce_between, image_ratio
 
 
 class DragTracker:
@@ -40,34 +37,34 @@ class DragTracker:
 
 
 class SlideshowView(QGraphicsView):
-    __config: UserConfig
     __debug_toast: Toast | None = None
-    __files: list[str]
+    __drag_tracker: DragTracker | None = None
     __history_idx: int = 0
-    __history: list[list[str]]
-    __initial_files: list[str]
     __remaining_time_tmp: int | None = None
     __show_debug_toast: bool = False
-    __toasts: list[Toast]
-    __drag_tracker: DragTracker | None = None
-    __zoom: int = 0
     __wheel_delta: int = 0
-    __pixmaps_view: AnimPixmapsView
+    __zoom: int = 0
+
+    __config: UserConfig
     __help_toast: Toast
+    __image_files: ImageFileList
     __interval: int
-    __transition_duration: float
+    __pixmaps_view: AnimPixmapsView
     __timer: QTimer
+    __toasts: list[Toast]
+    __transition_duration: float
 
     def __init__(self, path: str | list[str], config: UserConfig | None = None, parent: QWidget | None = None):
         super().__init__(parent)
 
         self.__config = config or UserConfig()
-        self.__initial_files = DirScanner(path, config=self.__config).list()
-        self.__files = self.__initial_files.copy()
-        self.__transition_duration = self.__config.transition_duration
-        self.__interval = self.__config.interval
-        self.__history = []
+        self.__transition_duration = self.__config.transition_duration.value
+        self.__interval = self.__config.interval.value
         self.__toasts = []
+
+        add_live_object(id(self), self.__class__.__name__)
+
+        self.__image_files = ImageFileList(DirScanner(path, config=self.__config).list())
 
         if self.__show_debug_toast:
             self.__debug_toast = self.create_toast(None, True)
@@ -79,14 +76,15 @@ class SlideshowView(QGraphicsView):
             "[S] Toggle auto-advance"
         )
 
-        self.__pixmaps_view = AnimPixmapsView(self)
+        self.__pixmaps_view = AnimPixmapsView()
+        scene = QGraphicsScene(self)
 
-        self.setScene(QGraphicsScene(self))
+        self.setScene(scene)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.DefaultContextMenu)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.setMouseTracking(False)
-        self.scene().addWidget(self.__pixmaps_view)
+        # self.setMouseTracking(False)
+        scene.addWidget(self.__pixmaps_view)
 
         if self.__show_debug_toast:
             debug_timer = QTimer(self, interval=200)
@@ -96,7 +94,7 @@ class SlideshowView(QGraphicsView):
         self.__timer = QTimer(self, interval=self.real_interval_ms)
         self.__timer.timeout.connect(self.__on_timeout)
 
-        if not self.__config.no_auto:
+        if self.__config.auto.value:
             self.__timer.start()
 
         self.draw()
@@ -112,7 +110,6 @@ class SlideshowView(QGraphicsView):
     def contextMenuEvent(self, event: QContextMenuEvent):
         menu = QMenu(self)
         timer_was_active = self.pause_slideshow()
-        files = self.__get_history_entry(self.__history_idx)
 
         def on_hide():
             if timer_was_active:
@@ -130,7 +127,7 @@ class SlideshowView(QGraphicsView):
 
         menu.addSeparator()
 
-        for path in files:
+        for path in self.__pixmaps_view.get_current_filenames():
             if "/" not in path:
                 path = f"./{path}"
             directory, basename = path.rsplit("/", 1)
@@ -156,6 +153,7 @@ class SlideshowView(QGraphicsView):
                 toast.hidden.disconnect()
                 toast.shown.disconnect()
                 toast.resized.disconnect()
+                toast.deleteLater()
             self.__place_toasts()
 
         @Slot()
@@ -173,8 +171,14 @@ class SlideshowView(QGraphicsView):
 
         return toast
 
+    def deleteLater(self):
+        remove_live_object(id(self))
+        super().deleteLater()
+
     def draw(self):
-        self.__pixmaps_view.set_current_pixmaps(self.__setup_pixmaps(self.__history_idx))
+        self.__pixmaps_view.transition_to(
+            combo=self.__image_files.get_history_entry(self.__history_idx, self.size().toSizeF()),
+        )
 
     def keyReleaseEvent(self, event: QKeyEvent):
         combo = event.keyCombination()
@@ -244,52 +248,21 @@ class SlideshowView(QGraphicsView):
         elif event.button() == Qt.MouseButton.MiddleButton:
             self.move_by(-1)
 
-    def toggle_fullscreen(self):
-        self.setWindowState(self.windowState() ^ Qt.WindowState.WindowFullScreen)
-
-    def wheelEvent(self, event: QWheelEvent):
-        self.__wheel_delta += event.angleDelta().y()
-
-        if abs(self.__wheel_delta) >= 120:
-            zoom_delta = 1 if self.__wheel_delta > 0 else -1
-            self.__wheel_delta = 0
-            self.zoom(zoom_delta, event.position())
-
-    def zoom(self, delta: int, target_viewport_pos: QPointF):
-        zoom = coerce_between(self.__zoom + delta, 0, 8)
-
-        if zoom != self.__zoom:
-            self.__zoom = zoom
-            scale_factor = 1.4 if delta > 0 else 1 / 1.4
-            target_scene_pos = self.mapToScene(target_viewport_pos.toPoint())
-            viewport = self.viewport()
-
-            self.scale(scale_factor, scale_factor)
-            self.centerOn(target_scene_pos)
-
-            delta_viewport_pos = target_viewport_pos - QPointF(viewport.width() / 2, viewport.height() / 2)
-            target_pos = self.mapFromScene(target_scene_pos)
-            viewport_center = target_pos - delta_viewport_pos.toPoint()
-
-            print(
-                "target_viewport_pos", target_viewport_pos, "target_scene_pos", target_scene_pos,
-                "delta_viewport_pos", delta_viewport_pos, "target_pos", target_pos, "viewport_center", viewport_center,
-            )
-
-            self.centerOn(self.mapToScene(viewport_center))
-
     def move_by(self, delta: int):
         history_idx = self.__history_idx + delta
         self.__remaining_time_tmp = None
 
         if history_idx >= 0 and not self.__pixmaps_view.is_transitioning:
             self.__history_idx = history_idx
-            pixmaps = self.__setup_pixmaps(history_idx)
+            combo = self.__image_files.get_history_entry(history_idx, self.size().toSizeF())
+
+            if history_idx % 10 == 0:
+                print_live_objects()
 
             self.__pixmaps_view.transition_to(
-                pixmaps=pixmaps,
+                combo=combo,
                 transition_pair_type=self.__get_next_transition_pair_type(),
-                transition_duration=self.__transition_duration
+                transition_duration=self.__transition_duration,
             )
 
             if self.__timer.isActive():
@@ -335,6 +308,9 @@ class SlideshowView(QGraphicsView):
     def sizeHint(self) -> QSize:
         return QSize(800, 600)
 
+    def toggle_fullscreen(self):
+        self.setWindowState(self.windowState() ^ Qt.WindowState.WindowFullScreen)
+
     def toggle_help_toast(self):
         if self.__help_toast.isVisible():
             self.__help_toast.hide()
@@ -358,29 +334,36 @@ class SlideshowView(QGraphicsView):
             if show_toast:
                 self.show_toast("Slideshow started")
 
-    def __get_history_entry(self, history_idx: int) -> list[str]:
-        while len(self.__history) <= history_idx:
-            self.__history.append([])
-        return self.__history[history_idx]
+    def wheelEvent(self, event: QWheelEvent):
+        self.__wheel_delta += event.angleDelta().y()
 
-    def __get_next_image(self, max_ratio: float | None, reinited: bool = False) -> SlidaImage | None:
-        files = self.__files.copy()
+        if abs(self.__wheel_delta) >= 120:
+            zoom_delta = 1 if self.__wheel_delta > 0 else -1
+            self.__wheel_delta = 0
+            self.zoom(zoom_delta, event.position())
 
-        for file in files:
-            try:
-                if max_ratio is None or image_ratio(file) <= max_ratio:
-                    # return SlidaImage(QPixmap(file), file)
-                    return SlidaImage(self, file)
-            except (PIL.UnidentifiedImageError, ValueError):
-                self.__initial_files.remove(file)
-            finally:
-                self.__files.remove(file)
+    def zoom(self, delta: int, target_viewport_pos: QPointF):
+        zoom = coerce_between(self.__zoom + delta, 0, 8)
 
-        if not reinited:
-            self.__files = self.__initial_files.copy()
-            return self.__get_next_image(max_ratio=max_ratio, reinited=True)
+        if zoom != self.__zoom:
+            self.__zoom = zoom
+            scale_factor = 1.4 if delta > 0 else 1 / 1.4
+            target_scene_pos = self.mapToScene(target_viewport_pos.toPoint())
+            viewport = self.viewport()
 
-        return None
+            self.scale(scale_factor, scale_factor)
+            self.centerOn(target_scene_pos)
+
+            delta_viewport_pos = target_viewport_pos - QPointF(viewport.width() / 2, viewport.height() / 2)
+            target_pos = self.mapFromScene(target_scene_pos)
+            viewport_center = target_pos - delta_viewport_pos.toPoint()
+
+            print(
+                "target_viewport_pos", target_viewport_pos, "target_scene_pos", target_scene_pos,
+                "delta_viewport_pos", delta_viewport_pos, "target_pos", target_pos, "viewport_center", viewport_center,
+            )
+
+            self.centerOn(self.mapToScene(viewport_center))
 
     def __get_next_transition_pair_type(self):
         pairs = self.__get_transition_pair_types()
@@ -388,25 +371,25 @@ class SlideshowView(QGraphicsView):
             return None
         return random.choice(pairs)
 
-    def __get_no_image_pixmap(self):
-        size = self.size()
-        image = QPixmap(size)
-        image.fill(Qt.GlobalColor.black)
-        painter = QPainter(image)
-        painter.setPen(Qt.GlobalColor.white)
-        font = painter.font()
-        font.setPixelSize(int(size.width() / 20))
-        painter.setFont(font)
-        painter.drawText(image.rect(), Qt.AlignmentFlag.AlignCenter, "No images found!")
-        return image
+    # def __get_no_image_pixmap(self):
+    #     size = self.size()
+    #     image = QPixmap(size)
+    #     image.fill(Qt.GlobalColor.black)
+    #     painter = QPainter(image)
+    #     painter.setPen(Qt.GlobalColor.white)
+    #     font = painter.font()
+    #     font.setPixelSize(int(size.width() / 20))
+    #     painter.setFont(font)
+    #     painter.drawText(image.rect(), Qt.AlignmentFlag.AlignCenter, "No images found!")
+    #     return image
 
     def __get_transition_pair_types(self):
         pairs = TRANSITION_PAIRS
 
-        if self.__config.transitions is not None:
+        if self.__config.transitions.value is not None:
             names = {p.name for p in pairs}
-            include = set(name.replace("_", "-") for name in self.__config.transitions.get("include", names))
-            exclude = set(name.replace("_", "-") for name in self.__config.transitions.get("exclude", []))
+            include = set(name.replace("_", "-") for name in self.__config.transitions.value.get("include", names))
+            exclude = set(name.replace("_", "-") for name in self.__config.transitions.value.get("exclude", []))
 
             if "all" not in include:
                 names &= include
@@ -425,7 +408,6 @@ class SlideshowView(QGraphicsView):
 
     @Slot()
     def __on_timeout(self):
-        self.__history = self.__history[:self.__history_idx + 1]
         self.move_by(1)
 
     def __open_ext(self, program: str, path: str):
@@ -440,26 +422,3 @@ class SlideshowView(QGraphicsView):
             if not toast.isHidden():
                 toast.move(0, offset)
                 offset += toast.label.height()
-
-    def __setup_pixmaps(self, history_idx: int) -> PixmapList:
-        files = self.__get_history_entry(history_idx)
-        pixmaps = PixmapList(self, self.size().toSizeF())
-        filenames = iter(files)
-
-        while self.__initial_files and (len(pixmaps) == 0 or not self.__config.no_tiling) and pixmaps.can_fit_more():
-            file = next(filenames, None)
-            if file:
-                # image = SlidaImage(QPixmap(file), file)
-                image = SlidaImage(self, file)
-            else:
-                image = self.__get_next_image(max_ratio=pixmaps.fitting_image_max_ratio())
-                if image:
-                    files.append(image.filename)
-            if image:
-                pixmaps.add_image(image)
-            else:
-                # if not self.__initial_files:
-                #     pixmaps.add_image(SlidaImage(self.__get_no_image_pixmap()))
-                break
-
-        return pixmaps

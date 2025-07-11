@@ -12,30 +12,37 @@ Some nice (?) features:
 ## Usage
 
 ```shell
-$ slida -h
-usage: slida [-h] [--recursive] [--no-auto] [--interval INTERVAL] [--order {name,created,modified,random}] [--reverse] [--transition-duration TRANSITION_DURATION] [--no-tiling]
-             [--transitions TRANSITIONS [TRANSITIONS ...]] [--exclude-transitions EXCLUDE_TRANSITIONS [EXCLUDE_TRANSITIONS ...]]
-             path [path ...]
+$ slida --help
+usage: slida [-h] [--interval INTERVAL] [--order {name,created,modified,random}] [--transition-duration TRANSITION_DURATION] [--transitions TRANSITIONS [TRANSITIONS ...]]
+             [--exclude-transitions EXCLUDE_TRANSITIONS [EXCLUDE_TRANSITIONS ...]] [--list-transitions] [--print-config] [--auto | --no-auto] [--recursive | --no-recursive] [--reverse | --no-reverse]
+             [--tiling | --no-tiling]
+             [path ...]
 
 positional arguments:
   path
 
 options:
   -h, --help            show this help message and exit
-  --recursive, -R       Iterate through subdirectories
-  --no-auto             Disables auto-advance
   --interval INTERVAL, -i INTERVAL
-                        Auto-advance interval, in seconds. Default: 20
+                        Auto-advance interval, in seconds (default: 20)
   --order {name,created,modified,random}, -o {name,created,modified,random}
                         Default: random
-  --reverse, -r
   --transition-duration TRANSITION_DURATION, -td TRANSITION_DURATION
-                        In seconds. 0 = no transitions. Default: 0.5
-  --no-tiling           Don't tile images horizontally
+                        In seconds; 0 = no transitions (default: 0.3)
   --transitions TRANSITIONS [TRANSITIONS ...]
-                        One or more transitions to use. Default: use them all
+                        One or more transitions to use (default: use them all)
   --exclude-transitions EXCLUDE_TRANSITIONS [EXCLUDE_TRANSITIONS ...]
                         One or more transitions NOT to use
+  --list-transitions    List available transitions and exit
+  --print-config        Also print debug info about the current config
+  --auto                Enable auto-advance (default)
+  --no-auto             Disable auto-advance
+  --recursive, -R       Iterate through subdirectories
+  --no-recursive        Do not iterate through subdirectories (default)
+  --reverse, -r         Reverse the image order
+  --no-reverse          Do not reverse the image order (default)
+  --tiling              Tile images horizontally (default)
+  --no-tiling           Do not tile images horizontally
 ```
 
 `--transitions` and `--exclude-transitions` govern which effects will be used for transitioning between images. The full list of transitions is available in `slida.transitions.TRANSITION_PAIRS`. Explicit exclusion overrides explicit inclusion. However, there is one special case: `--transitions all` on the command line overrides all other transition settings and simply includes all of them.
@@ -52,7 +59,37 @@ A file called `slida.yaml` will be looked for in the following locations, in ord
 
 If multiple config files are found, they will be merged so that arguments in a higher priority file will overwrite those in lower priority files.
 
-All command line arguments (in their long versions), except `path` and `help`, can be used in these files. However, the syntax for transition settings is a little different; instead of two separate settings, it's one `transitions` object with the optional string arrays `include` and `exclude`.
+All command line arguments in their long versions (OK, except `path`, `help`, `list-transitions`, and `print-config`) can be used in these files. However, the syntax for transition settings is a little different; instead of two separate settings, it's one `transitions` object with the optional string arrays `include` and `exclude` (see example below).
+
+To see exactly how the CLI arguments and config files are parsed, and how the resultant configuration looks, just add `--print-config`:
+
+```shell
+$ slida . --no-auto -td 3 --transitions top-left-squares top-squares --print-config
+CombinedUserConfig(FINAL)
+  auto: False
+  interval: 20
+  order: random
+  recursive: True
+  reverse: False
+  tiling: True
+  transition-duration: 3.0
+  transitions: {'include': ['top-left-squares', 'top-squares']}
+= DefaultUserConfig()
+    auto: True
+    interval: 20
+    order: random
+    recursive: False
+    reverse: False
+    tiling: True
+    transition-duration: 0.3
+    transitions: {}
++ UserConfig(/home/klaatu/.config/slida/slida.yaml)
+    recursive: True
++ UserConfig(CLI)
+    auto: False
+    transition-duration: 3.0
+    transitions: {'include': ['top-left-squares', 'top-squares']}
+```
 
 ### Example config file
 
@@ -63,7 +100,7 @@ order: name
 transitions:
   include:
     - clockface
-    - topleft-squares
+    - top-left-squares
     - flip-x
     - radial
   exclude:

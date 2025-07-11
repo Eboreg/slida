@@ -1,21 +1,16 @@
-import tracemalloc
-
 from PySide6.QtCore import Qt, Slot
-from PySide6.QtWidgets import QGraphicsItem, QGraphicsScene, QGraphicsView, QWidget
+from PySide6.QtWidgets import QGraphicsScene, QGraphicsView, QWidget
 
 from slida.AnimPixmapsWidget import AnimPixmapsWidget
-from slida.PixmapList import PixmapList
+from slida.ImageFileCombo import ImageFileCombo
+from slida.debug import add_live_object, remove_live_object
 from slida.transitions import NOOP, TransitionPair
 
 
-tracemalloc.start(10)
-
-
 class AnimPixmapsView(QGraphicsView):
-    __current_widget: AnimPixmapsWidget
-    __next_widget: AnimPixmapsWidget
+    __current_widget: AnimPixmapsWidget | None = None
     __is_transitioning: bool = False
-    __snapshot: tracemalloc.Snapshot | None = None
+    __next_widget: AnimPixmapsWidget | None = None
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
@@ -27,76 +22,62 @@ class AnimPixmapsView(QGraphicsView):
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setBackgroundBrush(Qt.GlobalColor.black)
 
-        self.__next_widget = AnimPixmapsWidget()
-        scene.addItem(self.__next_widget)
-
-        self.__current_widget = AnimPixmapsWidget()
-        scene.addItem(self.__current_widget)
+        add_live_object(id(self), self.__class__.__name__)
 
     @property
     def is_transitioning(self):
         return self.__is_transitioning
 
+    def deleteLater(self):
+        super().deleteLater()
+        remove_live_object(id(self))
+
+    def get_current_filenames(self):
+        if self.__current_widget:
+            return self.__current_widget.get_current_filenames()
+        return []
+
     @Slot()
     def on_transition_finished(self):
         old_current = self.__current_widget
         self.__current_widget = self.__next_widget
-        self.__next_widget = old_current
+
+        if old_current:
+            self.scene().removeItem(old_current)
+            old_current.deleteLater()
+            self.__next_widget = None
+
         self.__is_transitioning = False
-        self.__next_widget.stackBefore(self.__current_widget)
-
-        # self.snapshot()
-
-    def snapshot(self):
-        snapshot = tracemalloc.take_snapshot()
-        snapshot = snapshot.filter_traces((
-            tracemalloc.Filter(False, "<frozen importlib._bootstrap>"),
-            tracemalloc.Filter(False, "<frozen importlib._bootstrap_external>"),
-            tracemalloc.Filter(False, "<unknown>"),
-        ))
-
-        if self.__snapshot:
-            diffs = snapshot.compare_to(self.__snapshot, "traceback")
-            for diff in diffs[:10]:
-                print("%s memory blocks: %.1f KiB" % (diff.count, diff.size / 1024))
-                for line in diff.traceback.format():
-                    print(line)
-                print("")
-
-            print("\n============================================================\n")
-
-        self.__snapshot = snapshot
-
-    def log_item(self, item: QGraphicsItem, indent: int = 0):
-        print((" " * indent) + str(item))
-        for child in item.childItems():
-            self.log_item(child, indent + 4)
 
     def resizeEvent(self, event):
         viewport_rect = self.viewport().rect()
         geometry = self.geometry()
 
         self.scene().setSceneRect(viewport_rect)
-        self.__current_widget.setGeometry(geometry)
-        self.__next_widget.setGeometry(geometry)
+        if self.__current_widget:
+            self.__current_widget.setGeometry(geometry)
+        if self.__next_widget:
+            self.__next_widget.setGeometry(geometry)
         super().resizeEvent(event)
-
-    def set_current_pixmaps(self, pixmaps: PixmapList):
-        self.__current_widget.set_pixmaps(pixmaps)
-        self.scene().update(self.sceneRect())
 
     def transition_to(
         self,
-        pixmaps: PixmapList,
-        transition_pair_type: type[TransitionPair] | None,
-        transition_duration: float,
+        combo: ImageFileCombo,
+        transition_pair_type: type[TransitionPair] | None = None,
+        transition_duration: float = 0.0,
     ):
-        self.__next_widget.set_pixmaps(pixmaps)
-        self.scene().update(self.sceneRect())
+        if self.__is_transitioning:
+            return
 
         if transition_pair_type is None:
             transition_pair_type = NOOP
             transition_duration = 0.0
+
+        self.__next_widget = AnimPixmapsWidget(combo=combo, size=self.size().toSizeF())
+        self.scene().addItem(self.__next_widget)
+
+        if self.__current_widget and self.__current_widget.isActive():
+            self.__next_widget.stackBefore(self.__current_widget)
 
         transition_pair = transition_pair_type(
             parent=self,
@@ -105,8 +86,10 @@ class AnimPixmapsView(QGraphicsView):
             duration=int(transition_duration * 1000),
         )
 
-        self.__current_widget.set_transition(transition_pair.exit)
         self.__next_widget.set_transition(transition_pair.enter)
+        if self.__current_widget:
+            self.__current_widget.set_transition(transition_pair.exit)
+
         self.__is_transitioning = True
 
         transition_pair.animation_group.finished.connect(self.on_transition_finished)

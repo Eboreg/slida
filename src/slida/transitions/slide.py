@@ -4,9 +4,9 @@ from slida.transitions.base import Transition
 
 
 class HorizontalSlideTransition(Transition):
+    easing = QEasingCurve.Type.OutBack
     end_value = 0.0
     property_name = "x"
-    easing = QEasingCurve.Type.OutBack
 
     def cleanup(self):
         super().cleanup()
@@ -14,9 +14,9 @@ class HorizontalSlideTransition(Transition):
 
 
 class VerticalSlideTransition(Transition):
+    easing = QEasingCurve.Type.OutBack
     end_value = 0.0
     property_name = "y"
-    easing = QEasingCurve.Type.OutBack
 
     def cleanup(self):
         super().cleanup()

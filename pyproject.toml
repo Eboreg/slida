@@ -16,6 +16,7 @@ dependencies = [
     "platformdirs",
     "PySide6",
     "pyyaml",
+    "klaatu-python@https://github.com/Eboreg/klaatu-python/archive/refs/heads/master.zip",
 ]
 dynamic = ["version"]
 

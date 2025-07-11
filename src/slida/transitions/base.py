@@ -9,39 +9,37 @@ from PySide6.QtCore import (
     QPropertyAnimation,
     Slot,
 )
-from PySide6.QtGui import QPainter
-from PySide6.QtWidgets import QGraphicsEffect, QGraphicsWidget, QWidget
+from PySide6.QtGui import QImage, QPainter
+from PySide6.QtWidgets import QGraphicsEffect, QGraphicsWidget
 
-from slida.ScaledImage import ScaledImage
+from slida.debug import add_live_object, remove_live_object
 
 
-Parent = QWidget | QGraphicsWidget
 _ET = TypeVar("_ET", bound=QGraphicsEffect)
 
 
 class Transition(QObject):
-    name: str
     animation: QAbstractAnimation
-    property_name: str | None = None
-    start_value: float = 0.0
-    end_value: float = 1.0
+    name: str
+
     easing: QEasingCurve.Type = QEasingCurve.Type.Linear
-    parent_z: float | None = None
+    end_value: float = 1.0
     is_active: bool = False
     no_borders: bool = False
+    parent_z: float | None = None
+    property_name: str | None = None
+    start_value: float = 0.0
     _progress: float
-    _scaled_image: ScaledImage | None = None
 
-    def __init__(self, name: str, parent: QGraphicsWidget, duration: int):
+    def __init__(self, name: str, parent: QGraphicsWidget | None, duration: int):
         super().__init__(parent)
         self.name = name
         self._progress = self.start_value
 
-        if self.property_name:
-            parent.setProperty(self.property_name, self.get_start_value())
-        if self.parent_z is not None:
-            parent.setZValue(self.parent_z)
-            parent.setVisible(False)
+        add_live_object(id(self), self.__class__.__name__)
+
+        # TODO: nödvändig?
+        self.setParent(parent)
 
         self.animation = self.create_animation(duration)
 
@@ -75,15 +73,17 @@ class Transition(QObject):
         return animation
 
     def deleteLater(self):
-        if self._scaled_image:
-            self._scaled_image.deleteLater()
         super().deleteLater()
+        remove_live_object(id(self))
 
     def get_end_value(self) -> float:
         return self.end_value
 
     def get_start_value(self) -> float:
         return self.start_value
+
+    def on_animation_finish(self):
+        ...
 
     def on_animation_group_finish(self):
         self.is_active = False
@@ -93,17 +93,13 @@ class Transition(QObject):
     def on_animation_group_start(self):
         self.is_active = True
 
-    def on_animation_finish(self):
-        ...
-
     def on_animation_start(self):
         ...
 
     def on_progress(self, value: float):
         ...
 
-    def paint(self, painter: QPainter, scaled_image: ScaledImage):
-        image = scaled_image.get_image(no_borders=self.is_active and self.no_borders)
+    def paint(self, painter: QPainter, image: QImage):
         painter.drawImage(self.parent().rect(), image)
 
     def parent(self) -> QGraphicsWidget:
@@ -112,8 +108,14 @@ class Transition(QObject):
 
         return parent
 
-    def set_scaled_image(self, value: ScaledImage):
-        self._scaled_image = value
+    def setParent(self, parent: QObject | None):
+        super().setParent(parent)
+        if isinstance(parent, QGraphicsWidget):
+            if self.property_name:
+                parent.setProperty(self.property_name, self.get_start_value())
+            if self.parent_z is not None:
+                parent.setZValue(self.parent_z)
+                parent.setVisible(False)
 
     @Slot(QAbstractAnimation.State, QAbstractAnimation.State)
     def __on_animation_state_changed(self, new_state: QAbstractAnimation.State, old_state: QAbstractAnimation.State):

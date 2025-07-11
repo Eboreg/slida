@@ -1,29 +1,28 @@
-from dataclasses import dataclass
 from math import ceil, floor
 
-from PySide6.QtCore import QAbstractAnimation, QEasingCurve, QObject, QRect, QSequentialAnimationGroup
+from PySide6.QtCore import QAbstractAnimation, QEasingCurve, QObject, QRect, QSequentialAnimationGroup, QSize
 from PySide6.QtGui import QImage, QPainter
 
 import numpy as np
-from slida.ScaledImage import ScaledImage
+from slida.debug import add_live_object, remove_live_object
 from slida.transitions.base import Transition
 
 
-# @dataclass
 class SubImage(QObject):
-    image: QImage
-    geometry: QRect
-    row: int
     column: int
     filled: bool = False
+    row: int
 
-    def __init__(self, parent: QObject, image: QImage, geometry: QRect, row: int, column: int, filled: bool = False):
+    def __init__(self, parent: QObject, row: int, column: int, filled: bool = False):
         super().__init__(parent)
-        self.image = image
-        self.geometry = geometry
         self.row = row
         self.column = column
         self.filled = filled
+        add_live_object(id(self), self.__class__.__name__)
+
+    def deleteLater(self):
+        remove_live_object(id(self))
+        super().deleteLater()
 
     def toggle_filled(self):
         self.filled = not self.filled
@@ -32,61 +31,52 @@ class SubImage(QObject):
 class SubImageTransition(Transition):
     __subs: list[SubImage] | None = None
     columns: int = 0
-    rows: int = 0
     parent_z = 1.0
-
-    @property
-    def scaled_image(self) -> ScaledImage:
-        assert self._scaled_image is not None
-        return self._scaled_image
-
-    @property
-    def filled_subs(self) -> list[SubImage]:
-        return [s for s in self.subs if s.filled]
-
-    @property
-    def unfilled_subs(self) -> list[SubImage]:
-        return [s for s in self.subs if not s.filled]
-
-    @property
-    def subs(self) -> list[SubImage]:
-        if self.__subs is not None:
-            return self.__subs
-
-        subs: list[SubImage] = []
-
-        if self.scaled_image.size.width() > 0:
-            self.columns = round(self.scaled_image.size.width() / 50)
-            width = self.scaled_image.size.width() / self.columns
-            self.rows = round(self.scaled_image.size.height() / width)
-            height = self.scaled_image.size.height() / self.rows
-            image = self.scaled_image.get_image()
-
-            for y in range(self.rows):
-                for x in range(self.columns):
-                    geometry = QRect(floor(x * width), floor(y * height), ceil(width), ceil(height))
-                    subs.append(SubImage(parent=self, image=image.copy(geometry), geometry=geometry, row=y, column=x))
-
-        self.__subs = subs
-        return subs
+    rows: int = 0
 
     def deleteLater(self):
         for sub in self.__subs or []:
             sub.deleteLater()
         super().deleteLater()
 
-    def get_filled_subs(self):
-        if self._progress in (0.0, 1.0):
-            for sub in self.subs:
-                sub.filled = bool(self._progress)
-            return self.subs if self._progress else []
+    def get_sub_image_weight(self, s: SubImage) -> float:
+        return 1.0
 
-        diff = self.__diff()
+    def on_progress(self, value: float):
+        super().on_progress(value)
+        if self.__diff():
+            self.parent().update(self.parent().rect())
+
+    def paint(self, painter: QPainter, image: QImage):
+        for sub in self.__get_filled_subs(image.size()):
+            geometry = self.__get_sub_geometry(image.size(), sub)
+            painter.drawImage(geometry, image.copy(geometry))
+
+    def __diff(self) -> int:
+        if self.__subs:
+            filled_before = len([s for s in self.__subs if s.filled])
+            filled_after = round(len(self.__subs) * self._progress)
+            return filled_after - filled_before
+        return 0
+
+    def __get_filled_subs(self, size: QSize) -> list[SubImage]:
+        subs = self.__subs if self.__subs else self.__get_subs(size)
+
+        if self._progress in (0.0, 1.0):
+            for sub in subs:
+                sub.filled = bool(self._progress)
+            return subs if self._progress else []
+
+        filled_subs = [s for s in subs if s.filled]
+        filled_before = len(filled_subs)
+        filled_after = round(len(subs) * self._progress)
+        diff = filled_after - filled_before
 
         if diff != 0:
+            unfilled_subs = [s for s in subs if not s.filled]
             weights = None
             probabilities = None
-            subs = self.unfilled_subs if diff > 0 else self.filled_subs
+            subs = unfilled_subs if diff > 0 else filled_subs
             weights = np.array([self.get_sub_image_weight(s) for s in subs])
             if diff < 0:
                 weights = 1 / weights
@@ -100,25 +90,27 @@ class SubImageTransition(Transition):
                 print(e)
                 print(probabilities)
 
-        return self.filled_subs
+        return filled_subs
 
-    def get_sub_image_weight(self, s: SubImage) -> float:
-        return 1.0
+    def __get_sub_geometry(self, size: QSize, sub: SubImage) -> QRect:
+        sub_width = size.width() / self.columns
+        sub_height = size.height() / self.rows
+        return QRect(floor(sub.column * sub_width), floor(sub.row * sub_height), ceil(sub_width), ceil(sub_height))
 
-    def on_progress(self, value: float):
-        super().on_progress(value)
-        if self.__diff():
-            self.parent().update(self.parent().rect())
+    def __get_subs(self, size: QSize) -> list[SubImage]:
+        subs: list[SubImage] = []
 
-    def paint(self, painter: QPainter, scaled_image: ScaledImage):
-        self.set_scaled_image(scaled_image)
-        for sub in self.get_filled_subs():
-            painter.drawImage(sub.geometry, sub.image)
+        if size.width() > 0:
+            self.columns = round(size.width() / 50)
+            sub_width = size.width() / self.columns
+            self.rows = round(size.height() / sub_width)
 
-    def __diff(self):
-        filled_before = len(self.filled_subs)
-        filled_after = round(len(self.subs) * self._progress)
-        return filled_after - filled_before
+            for y in range(self.rows):
+                for x in range(self.columns):
+                    subs.append(SubImage(parent=self, row=y, column=x))
+
+        self.__subs = subs
+        return subs
 
 
 class RandomSquaresIn(SubImageTransition):

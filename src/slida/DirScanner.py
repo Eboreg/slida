@@ -3,7 +3,7 @@ import enum
 import mimetypes
 import os
 import random
-from typing import TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING
 
 
 if TYPE_CHECKING:
@@ -39,43 +39,55 @@ class DirScanner:
         self.config = config or UserConfig()
         self.visited_inodes: list[int] = []
 
-    def listdir(self) -> list[File]:
+    def list(self) -> list[str]:
+        return [entry.path for entry in self.__listdir()]
+
+    def __inode(self, entry: os.DirEntry | str):
+        return entry.inode() if isinstance(entry, os.DirEntry) else os.stat(entry).st_ino
+
+    def __is_dir(self, entry: os.DirEntry | str):
+        return entry.is_dir() if isinstance(entry, os.DirEntry) else os.path.isdir(entry)
+
+    def __is_file(self, entry: os.DirEntry | str):
+        return entry.is_file() if isinstance(entry, os.DirEntry) else os.path.isfile(entry)
+
+    def __listdir(self) -> "list[File]":
         entries: list[File] = []
 
         for path in self.root_paths:
-            entries.extend(list(self.scandir(path)))
+            entries.extend(list(self.__scandir(path, is_root=True)))
 
-        if self.config.order == FileOrder.NAME:
-            return sorted(entries, key=lambda e: e.path.lower(), reverse=self.config.reverse)
-        if self.config.order == FileOrder.CREATED:
-            return sorted(entries, key=lambda e: e.ctime, reverse=self.config.reverse)
-        if self.config.order == FileOrder.MODIFIED:
-            return sorted(entries, key=lambda e: e.mtime, reverse=self.config.reverse)
-        if self.config.order == FileOrder.RANDOM:
+        if self.config.order.value == FileOrder.NAME:
+            return sorted(entries, key=lambda e: e.path.lower(), reverse=self.config.reverse.value)
+        if self.config.order.value == FileOrder.CREATED:
+            return sorted(entries, key=lambda e: e.ctime, reverse=self.config.reverse.value)
+        if self.config.order.value == FileOrder.MODIFIED:
+            return sorted(entries, key=lambda e: e.mtime, reverse=self.config.reverse.value)
+        if self.config.order.value == FileOrder.RANDOM:
             random.shuffle(entries)
             return entries
         raise RuntimeError("This should not happen")
 
-    def list(self) -> list[str]:
-        return [entry.path for entry in self.listdir()]
+    def __path(self, entry: os.DirEntry | str):
+        return entry.path if isinstance(entry, os.DirEntry) else entry
 
-    def scandir(self, path: str) -> "Generator[File]":
-        if os.path.isfile(path):
-            stat = os.stat(path)
-            if stat.st_ino not in self.visited_inodes:
-                mimetype = mimetypes.guess_type(path)
-                self.visited_inodes.append(stat.st_ino)
-                if mimetype[0] is not None and mimetype[0].startswith("image/"):
-                    yield File(path=path, stat=stat)
-        elif os.path.isdir(path):
-            for entry in os.scandir(path):
-                stat = entry.stat()
-                if stat.st_ino in self.visited_inodes:
-                    continue
-                self.visited_inodes.append(stat.st_ino)
-                if entry.is_dir() and self.config.recursive:
-                    yield from self.scandir(entry.path)
-                elif entry.is_file():
-                    mimetype = mimetypes.guess_type(entry.path)
-                    if mimetype[0] is not None and mimetype[0].startswith("image/"):
-                        yield File(path=entry.path, stat=stat)
+    def __scandir(self, entry: os.DirEntry | str, is_root: bool = False):
+        if self.__is_dir(entry):
+            if is_root or self.config.recursive.value:
+                inode = self.__inode(entry)
+                if inode not in self.visited_inodes:
+                    self.visited_inodes.append(inode)
+                    with os.scandir(entry) as dir:
+                        for subentry in dir:
+                            yield from self.__scandir(subentry)
+
+        elif self.__is_file(entry):
+            mimetype = mimetypes.guess_type(self.__path(entry))
+            if mimetype[0] is not None and mimetype[0].startswith("image/"):
+                stat = self.__stat(entry)
+                if stat.st_ino not in self.visited_inodes:
+                    self.visited_inodes.append(stat.st_ino)
+                    yield File(path=self.__path(entry), stat=stat)
+
+    def __stat(self, entry: os.DirEntry | str):
+        return entry.stat() if isinstance(entry, os.DirEntry) else os.stat(entry)

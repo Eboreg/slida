@@ -42,7 +42,6 @@ from slida.transitions.various import (
 )
 
 
-# NOOP = TransitionPair("noop", Noop, Noop)
 NOOP = transition_pair_factory("noop", Noop, Noop)
 
 TRANSITION_PAIRS: list[type[TransitionPair]] = [
@@ -63,7 +62,7 @@ TRANSITION_PAIRS: list[type[TransitionPair]] = [
     transition_pair_factory("slide-right", SlideInFromLeft, SlideOutToRight),
     transition_pair_factory("slide-up", SlideInFromBottom, SlideOutToTop),
     transition_pair_factory("top-squares", TopSquaresIn, Noop),
-    transition_pair_factory("topleft-squares", TopLeftSquaresIn, Noop),
+    transition_pair_factory("top-left-squares", TopLeftSquaresIn, Noop),
 ]
 
 TRANSITION_PAIR_MAP: dict[str, type[TransitionPair]] = {
