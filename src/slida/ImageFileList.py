@@ -1,6 +1,8 @@
-from typing import Iterable, TYPE_CHECKING
+from typing import TYPE_CHECKING, Iterable
+
 import PIL
 from PySide6.QtCore import QSizeF
+
 
 if TYPE_CHECKING:
     from slida.ImageFile import ImageFile
@@ -19,17 +21,13 @@ class ImageFileList:
         self.__initial_images = self.__images.copy()
         self.__history = []
 
-    def get_history_entry(self, index: int, bounds: QSizeF):
+    def get_history_entry(self, index: int) -> "ImageFileCombo":
         from slida.ImageFileCombo import ImageFileCombo
 
         while len(self.__history) <= index:
             self.__history.append(ImageFileCombo())
-        entry = self.__history[index]
-        for next_entry in reversed(self.__history[index + 1:]):
-            for image in reversed(next_entry.empty()):
-                self.prepend(image)
-        entry.fill(bounds, self)
-        return entry
+
+        return self.__history[index]
 
     def get_next_image(self, max_ratio: float | None, reinited: bool = False) -> "ImageFile | None":
         images = self.__images.copy()
@@ -47,6 +45,14 @@ class ImageFileList:
             return self.get_next_image(max_ratio, reinited=True)
 
         return None
+
+    def prepare_history_entry(self, index: int, bounds: QSizeF) -> "ImageFileCombo":
+        entry = self.get_history_entry(index)
+        for next_entry in reversed(self.__history[index + 1:]):
+            for image in reversed(next_entry.empty()):
+                self.prepend(image)
+        entry.fill(bounds, self)
+        return entry
 
     def prepend(self, image: "ImageFile"):
         self.__images.insert(0, image)

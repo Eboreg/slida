@@ -1,22 +1,30 @@
 import math
 import random
 
+from klaatu_python.utils import coerce_between
 from PySide6.QtCore import QPointF, QProcess, QRectF, QSize, Qt, QTimer, Slot
 from PySide6.QtGui import (
     QContextMenuEvent,
     QKeyEvent,
     QMouseEvent,
+    QPaintEvent,
     QResizeEvent,
     QWheelEvent,
 )
-from PySide6.QtWidgets import QGraphicsScene, QGraphicsView, QMenu, QWidget
-from klaatu_python.utils import coerce_between
+from PySide6.QtWidgets import (
+    QApplication,
+    QGraphicsScene,
+    QGraphicsView,
+    QMenu,
+    QMessageBox,
+    QWidget,
+)
 
 from slida.AnimPixmapsView import AnimPixmapsView
+from slida.debug import add_live_object, print_live_objects, remove_live_object
 from slida.DirScanner import DirScanner
 from slida.ImageFileList import ImageFileList
 from slida.Toast import Toast
-from slida.debug import add_live_object, print_live_objects, remove_live_object
 from slida.transitions import TRANSITION_PAIRS
 from slida.UserConfig import UserConfig
 
@@ -97,7 +105,7 @@ class SlideshowView(QGraphicsView):
         if self.__config.auto.value:
             self.__timer.start()
 
-        self.draw()
+        # self.draw()
 
     @property
     def real_interval_ms(self) -> int:
@@ -176,9 +184,8 @@ class SlideshowView(QGraphicsView):
         super().deleteLater()
 
     def draw(self):
-        self.__pixmaps_view.transition_to(
-            combo=self.__image_files.get_history_entry(self.__history_idx, self.size().toSizeF()),
-        )
+        combo = self.__image_files.prepare_history_entry(self.__history_idx, self.size().toSizeF())
+        self.__pixmaps_view.transition_to(combo)
 
     def keyReleaseEvent(self, event: QKeyEvent):
         combo = event.keyCombination()
@@ -254,7 +261,7 @@ class SlideshowView(QGraphicsView):
 
         if history_idx >= 0 and not self.__pixmaps_view.is_transitioning:
             self.__history_idx = history_idx
-            combo = self.__image_files.get_history_entry(history_idx, self.size().toSizeF())
+            combo = self.__image_files.prepare_history_entry(history_idx, self.size().toSizeF())
 
             if history_idx % 10 == 0:
                 print_live_objects()
@@ -281,6 +288,10 @@ class SlideshowView(QGraphicsView):
             self.__transition_duration = new_value
             self.show_toast(f"Transition duration: {self.__transition_duration} s")
 
+    def paintEvent(self, event: QPaintEvent):
+        super().paintEvent(event)
+        self.quit_if_empty()
+
     def pause_slideshow(self, show_toast: bool = False) -> bool:
         if self.__timer.isActive():
             self.__remaining_time_tmp = self.__timer.remainingTime()
@@ -289,6 +300,14 @@ class SlideshowView(QGraphicsView):
                 self.show_toast("Slideshow paused")
             return True
         return False
+
+    def quit_if_empty(self):
+        combo = self.__image_files.get_history_entry(self.__history_idx)
+
+        if not combo.images:
+            box = QMessageBox(text="No images were found.", parent=self)
+            box.buttonClicked.connect(QApplication.quit, Qt.ConnectionType.DirectConnection)
+            box.exec()
 
     def resizeEvent(self, event: QResizeEvent):
         rect = self.viewport().rect()
@@ -370,18 +389,6 @@ class SlideshowView(QGraphicsView):
         if not pairs:
             return None
         return random.choice(pairs)
-
-    # def __get_no_image_pixmap(self):
-    #     size = self.size()
-    #     image = QPixmap(size)
-    #     image.fill(Qt.GlobalColor.black)
-    #     painter = QPainter(image)
-    #     painter.setPen(Qt.GlobalColor.white)
-    #     font = painter.font()
-    #     font.setPixelSize(int(size.width() / 20))
-    #     painter.setFont(font)
-    #     painter.drawText(image.rect(), Qt.AlignmentFlag.AlignCenter, "No images found!")
-    #     return image
 
     def __get_transition_pair_types(self):
         pairs = TRANSITION_PAIRS

@@ -1,9 +1,16 @@
 from math import ceil, floor
 
-from PySide6.QtCore import QAbstractAnimation, QEasingCurve, QObject, QRect, QSequentialAnimationGroup, QSize
+import numpy as np
+from PySide6.QtCore import (
+    QAbstractAnimation,
+    QEasingCurve,
+    QObject,
+    QRect,
+    QSequentialAnimationGroup,
+    QSize,
+)
 from PySide6.QtGui import QImage, QPainter
 
-import numpy as np
 from slida.debug import add_live_object, remove_live_object
 from slida.transitions.base import Transition
 

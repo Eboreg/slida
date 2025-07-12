@@ -1,5 +1,7 @@
-from typing import Generator, Iterable, TYPE_CHECKING
+from typing import TYPE_CHECKING, Generator, Iterable
+
 from PySide6.QtCore import QRectF, QSizeF
+
 
 if TYPE_CHECKING:
     from slida.ImageFile import ImageFile

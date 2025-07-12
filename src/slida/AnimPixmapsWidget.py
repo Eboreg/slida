@@ -7,8 +7,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from slida.ImageFileCombo import ImageFileCombo
 from slida.debug import add_live_object, remove_live_object
+from slida.ImageFileCombo import ImageFileCombo
 from slida.transitions import Transition
 
 
@@ -22,6 +22,10 @@ class AnimPixmapsWidget(QGraphicsWidget):
         super().__init__(size=size)
         self.__combo = combo
         add_live_object(id(self), self.__class__.__name__)
+
+    @property
+    def combo(self):
+        return self.__combo
 
     def deleteLater(self):
         if self.__transition:

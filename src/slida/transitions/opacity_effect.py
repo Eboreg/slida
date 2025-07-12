@@ -2,6 +2,7 @@ import math
 import random
 from abc import abstractmethod
 
+from klaatu_python.utils import coerce_between
 from PySide6.QtCore import QEasingCurve, QPoint, QPointF, Qt
 from PySide6.QtGui import (
     QConicalGradient,
@@ -10,7 +11,6 @@ from PySide6.QtGui import (
     QRadialGradient,
 )
 from PySide6.QtWidgets import QGraphicsOpacityEffect
-from klaatu_python.utils import coerce_between
 
 from slida.transitions.base import EffectTransition
 

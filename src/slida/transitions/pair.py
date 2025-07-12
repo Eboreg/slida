@@ -1,4 +1,6 @@
 from typing import TypeVar, cast
+
+from klaatu_python.case import KebabCase, PascalCase, convert_case
 from PySide6.QtCore import (
     QAbstractAnimation,
     QAnimationGroup,
@@ -8,7 +10,6 @@ from PySide6.QtCore import (
     Slot,
 )
 from PySide6.QtWidgets import QGraphicsWidget
-from klaatu_python.case import KebabCase, PascalCase, convert_case
 
 from slida.debug import add_live_object, remove_live_object
 from slida.transitions.base import Transition

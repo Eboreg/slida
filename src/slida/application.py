@@ -8,15 +8,15 @@ from PySide6.QtWidgets import QApplication
 from slida import __version__
 from slida.DirScanner import FileOrder
 from slida.SlideshowView import SlideshowView
-from slida.UserConfig import CombinedUserConfig, DefaultUserConfig
 from slida.transitions import TRANSITION_PAIRS
+from slida.UserConfig import CombinedUserConfig, DefaultUserConfig
 
 
 def main():
     parser = argparse.ArgumentParser()
     default_config = DefaultUserConfig()
 
-    parser.add_argument("path", default=".", nargs="*")
+    parser.add_argument("path", default="", nargs="*")
     parser.add_argument(
         "--interval",
         "-i",
@@ -103,6 +103,21 @@ def main():
         help="Do not tile images horizontally" + (" (default)" if not default_config.tiling.value else ""),
     )
 
+    hidden = parser.add_mutually_exclusive_group()
+    hidden.add_argument(
+        "--hidden",
+        action="store_const",
+        const=True,
+        help="Include hidden files and directories" + (" (default)" if default_config.hidden.value else ""),
+    )
+    hidden.add_argument(
+        "--no-hidden",
+        action="store_const",
+        const=False,
+        dest="hidden",
+        help="Do not include hidden files and directories" + (" (default)" if not default_config.hidden.value else ""),
+    )
+
     args = parser.parse_args()
     custom_dirs = [d for d in [Path(p) for p in args.path] if d.is_dir()]
 
@@ -121,10 +136,16 @@ def main():
 
     if args.print_config:
         print(config)
+        sys.exit()
+
+    if not args.path:
+        print("You need to set a path.", file=sys.stderr)
+        sys.exit(1)
 
     app = QApplication([])
     app.setWindowIcon(QIcon(str(Path(__file__).parent / "slida.png")))
     app.setApplicationName("Slida v" + __version__)
+    app.lastWindowClosed.connect(app.quit)
     slida = SlideshowView(args.path, config=config)
     slida.show()
     sys.exit(app.exec())

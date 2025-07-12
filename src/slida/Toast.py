@@ -1,6 +1,7 @@
 from PySide6.QtCore import QSize, Qt, QTimer, Signal, Slot
 from PySide6.QtGui import QPalette
 from PySide6.QtWidgets import QDockWidget, QLabel
+
 from slida.debug import add_live_object, remove_live_object
 
 

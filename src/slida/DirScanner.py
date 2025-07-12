@@ -68,10 +68,16 @@ class DirScanner:
             return entries
         raise RuntimeError("This should not happen")
 
+    def __name(self, entry: os.DirEntry | str):
+        return entry.name if isinstance(entry, os.DirEntry) else entry.split("/")[-1]
+
     def __path(self, entry: os.DirEntry | str):
         return entry.path if isinstance(entry, os.DirEntry) else entry
 
     def __scandir(self, entry: os.DirEntry | str, is_root: bool = False):
+        if not is_root and not self.config.hidden.value and self.__name(entry).startswith("."):
+            return
+
         if self.__is_dir(entry):
             if is_root or self.config.recursive.value:
                 inode = self.__inode(entry)

@@ -1,8 +1,14 @@
 import argparse
-import functools
 import warnings
 from pathlib import Path
-from typing import Callable, Generic, NotRequired, Self, Sequence, TypedDict, TypeVar
+from typing import (
+    Callable,
+    Generic,
+    NotRequired,
+    Sequence,
+    TypedDict,
+    TypeVar,
+)
 
 import platformdirs
 import yaml
@@ -71,11 +77,12 @@ class UserConfig:
     source: str | None
 
     auto = UserConfigField(bool, True)
+    hidden = UserConfigField(bool, False)
     interval = UserConfigField(int, 20)
-    tiling = UserConfigField(bool, True)
     order = UserConfigField(FileOrder, FileOrder.RANDOM)
     recursive = UserConfigField(bool, False)
     reverse = UserConfigField(bool, False)
+    tiling = UserConfigField(bool, True)
     transition_duration = UserConfigField(float, 0.3)
     transitions = UserConfigField(TransitionConfig, dict)
 

@@ -2,8 +2,8 @@ from PySide6.QtCore import Qt, Slot
 from PySide6.QtWidgets import QGraphicsScene, QGraphicsView, QWidget
 
 from slida.AnimPixmapsWidget import AnimPixmapsWidget
-from slida.ImageFileCombo import ImageFileCombo
 from slida.debug import add_live_object, remove_live_object
+from slida.ImageFileCombo import ImageFileCombo
 from slida.transitions import NOOP, TransitionPair
 
 
