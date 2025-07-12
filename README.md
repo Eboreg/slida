@@ -15,7 +15,7 @@ Some nice (?) features:
 $ slida --help
 usage: slida [-h] [--interval INTERVAL] [--order {name,created,modified,random}] [--transition-duration TRANSITION_DURATION] [--transitions TRANSITIONS [TRANSITIONS ...]]
              [--exclude-transitions EXCLUDE_TRANSITIONS [EXCLUDE_TRANSITIONS ...]] [--list-transitions] [--print-config] [--auto | --no-auto] [--recursive | --no-recursive] [--reverse | --no-reverse]
-             [--tiling | --no-tiling]
+             [--tiling | --no-tiling] [--hidden | --no-hidden]
              [path ...]
 
 positional arguments:
@@ -43,6 +43,8 @@ options:
   --no-reverse          Do not reverse the image order (default)
   --tiling              Tile images horizontally (default)
   --no-tiling           Do not tile images horizontally
+  --hidden              Include hidden files and directories
+  --no-hidden           Do not include hidden files and directories (default)
 ```
 
 `--transitions` and `--exclude-transitions` govern which effects will be used for transitioning between images. The full list of transitions is available in `slida.transitions.TRANSITION_PAIRS`. Explicit exclusion overrides explicit inclusion. However, there is one special case: `--transitions all` on the command line overrides all other transition settings and simply includes all of them.
@@ -64,9 +66,10 @@ All command line arguments in their long versions (OK, except `path`, `help`, `l
 To see exactly how the CLI arguments and config files are parsed, and how the resultant configuration looks, just add `--print-config`:
 
 ```shell
-$ slida . --no-auto -td 3 --transitions top-left-squares top-squares --print-config
+$ slida --no-auto -td 3 --transitions top-left-squares top-squares --print-config
 CombinedUserConfig(FINAL)
   auto: False
+  hidden: False
   interval: 20
   order: random
   recursive: True
@@ -76,6 +79,7 @@ CombinedUserConfig(FINAL)
   transitions: {'include': ['top-left-squares', 'top-squares']}
 = DefaultUserConfig()
     auto: True
+    hidden: False
     interval: 20
     order: random
     recursive: False
