@@ -66,6 +66,19 @@ class ExplodeImplodeTransition(OpacityEffectTransition):
         return progress + 0.01
 
 
+class BlindsOut(OpacityEffectTransition):
+    easing = QEasingCurve.Type.OutSine
+
+    def create_brush(self, value):
+        brush = QLinearGradient(QPoint(0, 0), QPoint(50, 0))
+        brush.setSpread(QGradient.Spread.RepeatSpread)
+
+        return brush
+
+    def get_black_pos(self, progress):
+        return progress + 0.01
+
+
 class ClockfaceOut(OpacityEffectTransition):
     easing = QEasingCurve.Type.InOutSine
 
@@ -85,19 +98,6 @@ class ImplodeOut(ExplodeImplodeTransition):
     easing = QEasingCurve.Type.OutBounce
     end_value = 0.0
     start_value = 1.0
-
-
-class MarqueeOut(OpacityEffectTransition):
-    easing = QEasingCurve.Type.OutSine
-
-    def create_brush(self, value):
-        brush = QLinearGradient(QPoint(0, 0), QPoint(50, 0))
-        brush.setSpread(QGradient.Spread.RepeatSpread)
-
-        return brush
-
-    def get_black_pos(self, progress):
-        return progress + 0.01
 
 
 class RadialOut(OpacityEffectTransition):

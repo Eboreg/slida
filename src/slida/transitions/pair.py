@@ -78,6 +78,13 @@ class SequentialTransitionPair(TransitionPair):
 
     def __init__(self, parent, enter_parent, exit_parent, duration):
         super().__init__(parent, enter_parent, exit_parent, int(duration / 2))
+        if self.exit:
+            self.exit.finished.connect(self.on_exit_animation_finish)
+
+    @Slot()
+    def on_exit_animation_finish(self):
+        if self.exit:
+            self.exit.parent().hide()
 
 
 def transition_pair_factory(

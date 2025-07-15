@@ -1,14 +1,7 @@
 import argparse
 import warnings
 from pathlib import Path
-from typing import (
-    Callable,
-    Generic,
-    NotRequired,
-    Sequence,
-    TypedDict,
-    TypeVar,
-)
+from typing import Callable, Generic, NotRequired, Sequence, TypedDict, TypeVar
 
 import platformdirs
 import yaml

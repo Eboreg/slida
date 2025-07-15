@@ -7,6 +7,8 @@ from PySide6.QtCore import (
     QEasingCurve,
     QObject,
     QPropertyAnimation,
+    QRectF,
+    Signal,
     Slot,
 )
 from PySide6.QtGui import QImage, QPainter
@@ -30,6 +32,9 @@ class Transition(QObject):
     property_name: str | None = None
     start_value: float = 0.0
     _progress: float
+
+    started = Signal()
+    finished = Signal()
 
     def __init__(self, name: str, parent: QGraphicsWidget | None, duration: int):
         super().__init__(parent)
@@ -99,7 +104,7 @@ class Transition(QObject):
     def on_progress(self, value: float):
         ...
 
-    def paint(self, painter: QPainter, image: QImage):
+    def paint(self, painter: QPainter, image: QImage, image_rect: QRectF):
         painter.drawImage(self.parent().rect(), image)
 
     def parent(self) -> QGraphicsWidget:
@@ -120,9 +125,11 @@ class Transition(QObject):
     @Slot(QAbstractAnimation.State, QAbstractAnimation.State)
     def __on_animation_state_changed(self, new_state: QAbstractAnimation.State, old_state: QAbstractAnimation.State):
         if new_state == QAbstractAnimation.State.Running and old_state != new_state:
+            self.started.emit()
             self.on_animation_start()
         elif new_state == QAbstractAnimation.State.Stopped and old_state != new_state:
             try:
+                self.finished.emit()
                 self.on_animation_finish()
             except RuntimeError:
                 pass

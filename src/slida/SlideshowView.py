@@ -250,9 +250,9 @@ class SlideshowView(QGraphicsView):
         #     if tracker.total_distance > 10:
         #         return
 
-        if event.button() == Qt.MouseButton.LeftButton:
+        if event.button() in (Qt.MouseButton.LeftButton, Qt.MouseButton.ForwardButton):
             self.move_by(1)
-        elif event.button() == Qt.MouseButton.MiddleButton:
+        elif event.button() in (Qt.MouseButton.MiddleButton, Qt.MouseButton.BackButton):
             self.move_by(-1)
 
     def move_by(self, delta: int):

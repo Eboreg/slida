@@ -1,4 +1,4 @@
-from PySide6.QtCore import QSizeF, Qt
+from PySide6.QtCore import QRectF, QSizeF, Qt
 from PySide6.QtGui import QImage, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QGraphicsSceneResizeEvent,
@@ -16,6 +16,7 @@ class AnimPixmapsWidget(QGraphicsWidget):
     __combo: ImageFileCombo
 
     __qimage: QImage | None = None
+    __qimage_rect: QRectF | None = None
     __transition: Transition | None = None
 
     def __init__(self, combo: ImageFileCombo, size: QSizeF):
@@ -37,10 +38,10 @@ class AnimPixmapsWidget(QGraphicsWidget):
         return [i.filename for i in self.__combo.images]
 
     def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget: QWidget | None = None):
-        qimage = self.__get_qimage()
+        qimage, rect = self.__get_qimage()
 
         if self.__transition:
-            self.__transition.paint(painter, qimage)
+            self.__transition.paint(painter, qimage, rect)
         else:
             painter.drawImage(self.rect(), qimage)
 
@@ -55,20 +56,26 @@ class AnimPixmapsWidget(QGraphicsWidget):
             transition.setParent(self)
         self.__transition = transition
 
-    def __get_qimage(self) -> QImage:
-        if self.__qimage:
-            return self.__qimage
+    def __get_qimage(self) -> tuple[QImage, QRectF]:
+        if self.__qimage and self.__qimage_rect:
+            return self.__qimage, self.__qimage_rect
 
         size = self.size()
-        qimage = QImage(size.toSize(), QImage.Format.Format_ARGB32)
+        qimage = QImage(size.toSize(), QImage.Format.Format_RGB32)
         qimage.fill(Qt.GlobalColor.black)
         painter = QPainter(qimage)
+        image_rects: list[QRectF] = []
+        self.__qimage_rect = QRectF()
 
-        for image, rect in self.__combo.get_placed_images(size):
-            pixmap = QPixmap(image.filename).scaled(rect.size().toSize())
-            painter.drawPixmap(rect.topLeft(), pixmap)
+        for image, image_rect in self.__combo.get_placed_images(size):
+            pixmap = QPixmap(image.filename).scaled(image_rect.size().toSize())
+            painter.drawPixmap(image_rect.topLeft(), pixmap)
+            image_rects.append(image_rect)
 
+        if image_rects:
+            self.__qimage_rect.setTopLeft(image_rects[0].topLeft())
+            self.__qimage_rect.setBottomRight(image_rects[-1].bottomRight())
         painter.end()
         self.__qimage = qimage
 
-        return qimage
+        return qimage, self.__qimage_rect
