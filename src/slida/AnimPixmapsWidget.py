@@ -1,5 +1,7 @@
-from PySide6.QtCore import QRectF, QSizeF, Qt
-from PySide6.QtGui import QImage, QPainter, QPixmap
+from typing import TYPE_CHECKING
+
+from PySide6.QtCore import QSizeF
+from PySide6.QtGui import QPainter
 from PySide6.QtWidgets import (
     QGraphicsSceneResizeEvent,
     QGraphicsWidget,
@@ -8,25 +10,26 @@ from PySide6.QtWidgets import (
 )
 
 from slida.debug import add_live_object, remove_live_object
-from slida.ImageFileCombo import ImageFileCombo
-from slida.transitions import Transition
+
+
+if TYPE_CHECKING:
+    from slida.ImageFileManager import ImageFileManager
+    from slida.ImageScreen import ImageScreen
+    from slida.transitions import Transition
 
 
 class AnimPixmapsWidget(QGraphicsWidget):
-    __combo: ImageFileCombo
+    __image_file_manager: "ImageFileManager"
+    __image_screen: "ImageScreen"
+    __screen_idx: int
+    __transition: "Transition | None" = None
 
-    __qimage: QImage | None = None
-    __qimage_rect: QRectF | None = None
-    __transition: Transition | None = None
-
-    def __init__(self, combo: ImageFileCombo, size: QSizeF):
+    def __init__(self, image_file_manager: "ImageFileManager", screen_idx: int, size: QSizeF):
+        self.__screen_idx = screen_idx
+        self.__image_file_manager = image_file_manager
+        self.__image_screen = image_file_manager.get_image_screen(screen_idx, size)
         super().__init__(size=size)
-        self.__combo = combo
         add_live_object(id(self), self.__class__.__name__)
-
-    @property
-    def combo(self):
-        return self.__combo
 
     def deleteLater(self):
         if self.__transition:
@@ -35,47 +38,24 @@ class AnimPixmapsWidget(QGraphicsWidget):
         super().deleteLater()
 
     def get_current_filenames(self):
-        return [i.filename for i in self.__combo.images]
+        return [i.file.path for i in self.__image_screen.images]
 
     def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget: QWidget | None = None):
-        qimage, rect = self.__get_qimage()
+        qimage = self.__image_screen.get_outer_qimage()
 
         if self.__transition:
-            self.__transition.paint(painter, qimage, rect)
+            self.__transition.paint(painter, qimage, self.__image_screen.inner_rect)
         else:
             painter.drawImage(self.rect(), qimage)
 
     def resizeEvent(self, event: QGraphicsSceneResizeEvent):
         super().resizeEvent(event)
-        self.__qimage = None
+        if self.size() != self.__image_screen.bounds:
+            self.__image_screen = self.__image_file_manager.get_image_screen(self.__screen_idx, self.size())
 
-    def set_transition(self, transition: Transition | None):
+    def set_transition(self, transition: "Transition | None"):
         if self.__transition:
             self.__transition.deleteLater()
         if transition:
             transition.setParent(self)
         self.__transition = transition
-
-    def __get_qimage(self) -> tuple[QImage, QRectF]:
-        if self.__qimage and self.__qimage_rect:
-            return self.__qimage, self.__qimage_rect
-
-        size = self.size()
-        qimage = QImage(size.toSize(), QImage.Format.Format_RGB32)
-        qimage.fill(Qt.GlobalColor.black)
-        painter = QPainter(qimage)
-        image_rects: list[QRectF] = []
-        self.__qimage_rect = QRectF()
-
-        for image, image_rect in self.__combo.get_placed_images(size):
-            pixmap = QPixmap(image.filename).scaled(image_rect.size().toSize())
-            painter.drawPixmap(image_rect.topLeft(), pixmap)
-            image_rects.append(image_rect)
-
-        if image_rects:
-            self.__qimage_rect.setTopLeft(image_rects[0].topLeft())
-            self.__qimage_rect.setBottomRight(image_rects[-1].bottomRight())
-        painter.end()
-        self.__qimage = qimage
-
-        return qimage, self.__qimage_rect

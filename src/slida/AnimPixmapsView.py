@@ -1,20 +1,33 @@
-from PySide6.QtCore import Qt, Slot
+from typing import TYPE_CHECKING
+
+from PySide6.QtCore import Qt, Signal, Slot
 from PySide6.QtWidgets import QGraphicsScene, QGraphicsView, QWidget
 
 from slida.AnimPixmapsWidget import AnimPixmapsWidget
-from slida.debug import add_live_object, remove_live_object
-from slida.ImageFileCombo import ImageFileCombo
-from slida.transitions import NOOP, TransitionPair
+from slida.debug import add_live_object, print_live_objects, remove_live_object
+from slida.transitions import NOOP
+
+
+if TYPE_CHECKING:
+    from slida.ImageFileManager import ImageFileManager
+    from slida.transitions import TransitionPair
+    from slida.UserConfig import UserConfig
 
 
 class AnimPixmapsView(QGraphicsView):
+    __config: "UserConfig"
     __current_widget: AnimPixmapsWidget | None = None
+    __image_file_manager: "ImageFileManager"
     __is_transitioning: bool = False
     __next_widget: AnimPixmapsWidget | None = None
 
-    def __init__(self, parent: QWidget | None = None):
+    transition_finished = Signal()
+
+    def __init__(self, image_file_manager: "ImageFileManager", config: "UserConfig", parent: QWidget | None = None):
         super().__init__(parent)
 
+        self.__config = config
+        self.__image_file_manager = image_file_manager
         scene = QGraphicsScene(self)
 
         self.setScene(scene)
@@ -41,13 +54,14 @@ class AnimPixmapsView(QGraphicsView):
     def on_transition_finished(self):
         old_current = self.__current_widget
         self.__current_widget = self.__next_widget
+        self.__is_transitioning = False
 
         if old_current:
             self.scene().removeItem(old_current)
             old_current.deleteLater()
             self.__next_widget = None
 
-        self.__is_transitioning = False
+        self.transition_finished.emit()
 
     def resizeEvent(self, event):
         viewport_rect = self.viewport().rect()
@@ -62,8 +76,8 @@ class AnimPixmapsView(QGraphicsView):
 
     def transition_to(
         self,
-        combo: ImageFileCombo,
-        transition_pair_type: type[TransitionPair] | None = None,
+        screen_idx: int,
+        transition_pair_type: "type[TransitionPair] | None" = None,
         transition_duration: float = 0.0,
     ):
         if self.__is_transitioning:
@@ -73,7 +87,11 @@ class AnimPixmapsView(QGraphicsView):
             transition_pair_type = NOOP
             transition_duration = 0.0
 
-        self.__next_widget = AnimPixmapsWidget(combo=combo, size=self.size().toSizeF())
+        self.__next_widget = AnimPixmapsWidget(
+            image_file_manager=self.__image_file_manager,
+            screen_idx=screen_idx,
+            size=self.size().toSizeF(),
+        )
         self.scene().addItem(self.__next_widget)
 
         if self.__current_widget and self.__current_widget.isActive():
@@ -85,6 +103,14 @@ class AnimPixmapsView(QGraphicsView):
             exit_parent=self.__current_widget,
             duration=int(transition_duration * 1000),
         )
+
+        if self.__config.debug.value:
+            print(
+                f"enter_class={transition_pair.enter_class.__name__}, "
+                f"exit_class={transition_pair.exit_class.__name__}"
+            )
+            if screen_idx % 10 == 0:
+                print_live_objects()
 
         self.__next_widget.set_transition(transition_pair.enter)
         if self.__current_widget:

@@ -3,22 +3,29 @@ build-backend = "setuptools.build_meta"
 requires = ["setuptools"]
 
 [project]
-name = "slida"
 authors = [
     {name = "Robert Huselius", email = "robert@huseli.us"},
 ]
-description = ""
-license = {file = "LICENSE"}
-requires-python = ">=3.10"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: X11 Applications :: Qt",
+    "Topic :: Multimedia :: Graphics :: Presentation",
+    "Topic :: Multimedia :: Graphics :: Viewers",
+]
 dependencies = [
+    "klaatu-python",
     "numpy",
-    "pillow",
     "platformdirs",
     "PySide6",
     "pyyaml",
-    "klaatu-python@https://github.com/Eboreg/klaatu-python/archive/refs/heads/master.zip",
 ]
+description = ""
 dynamic = ["version"]
+license = "GPL-3.0-only"
+license-files = ["LICENSE"]
+name = "slida"
+readme = "README.md"
+requires-python = ">=3.10"
 
 [project.optional-dependencies]
 dev = [
@@ -31,6 +38,11 @@ dev = [
 
 [project.scripts]
 slida = "slida.application:main"
+
+[project.urls]
+Homepage = "https://github.com/Eboreg/slida"
+Issues = "https://github.com/Eboreg/slida/issues"
+Source = "https://github.com/Eboreg/slida"
 
 [tool.setuptools.dynamic]
 version = {attr = "slida.__version__"}
@@ -56,18 +68,18 @@ disable = [
     "too-many-statements",
     "unused-argument",
 ]
+extension-pkg-allow-list = ["PySide6.QtWidgets", "PySide6"]
 ignore = [".venv", "node_modules"]
 ignore-patterns = ["^\\.#", ".*\\.pyi", "apps\\.py"]
 max-line-length = 119
-extension-pkg-allow-list = ["PySide6.QtWidgets", "PySide6"]
 
 [tool.isort]
 combine_as_imports = true
 default_section = "THIRDPARTY"
 include_trailing_comma = true
 line_length = 79
-multi_line_output = 3
 lines_after_imports = 2
+multi_line_output = 3
 sections = [
     "FUTURE",
     "STDLIB",
@@ -78,13 +90,13 @@ sections = [
 skip = [".venv", "node_modules", "build"]
 
 [tool.mypy]
-follow_imports = "skip"
-show_error_codes = true
-ignore_missing_imports = true
-files = "."
 check_untyped_defs = true
+files = "."
+follow_imports = "skip"
+ignore_missing_imports = true
+show_error_codes = true
 
 [tool.pyright]
 exclude = ["**/__pycache__", "build", "**/.*", ".venv"]
-typeCheckingMode = "basic"
 ignore = [".venv"]
+typeCheckingMode = "basic"

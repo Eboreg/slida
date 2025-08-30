@@ -17,5 +17,6 @@ def remove_live_object(obj_id: int):
 
 
 def print_live_objects():
+    print("LIVE OBJECTS:")
     for obj_id, (obj_name, timestamp) in sorted(live_objects.items(), key=lambda i: i[1][1]):
         print(f"{hex(obj_id)} \t {obj_name} \t {datetime.datetime.fromtimestamp(timestamp)}")

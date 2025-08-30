@@ -9,13 +9,17 @@ Some nice (?) features:
 
 ![Screenshot_20250628_092430](https://github.com/user-attachments/assets/81663353-2cca-43a1-9162-649b42b47c8c)
 
+## Installation
+
+`pip install slida` or `pipx install slida` should do the trick.
+
 ## Usage
 
 ```shell
 $ slida --help
-usage: slida [-h] [--interval INTERVAL] [--order {name,created,modified,random}] [--transition-duration TRANSITION_DURATION] [--transitions TRANSITIONS [TRANSITIONS ...]]
-             [--exclude-transitions EXCLUDE_TRANSITIONS [EXCLUDE_TRANSITIONS ...]] [--list-transitions] [--print-config] [--auto | --no-auto] [--recursive | --no-recursive] [--reverse | --no-reverse]
-             [--tiling | --no-tiling] [--hidden | --no-hidden]
+usage: slida [-h] [--list-transitions] [--print-config] [--auto | --no-auto] [--debug | --no-debug] [--hidden | --no-hidden] [--interval INTERVAL] [--order ORDER] [--recursive |
+             --no-recursive] [--reverse | --no-reverse] [--symlinks | --no-symlinks] [--tiling | --no-tiling] [--transition-duration TRANSITION_DURATION] [--transition TRANSITIONS]
+             [--exclude-transition EXCLUDE_TRANSITIONS]
              [path ...]
 
 positional arguments:
@@ -23,31 +27,34 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
-  --interval INTERVAL, -i INTERVAL
-                        Auto-advance interval, in seconds (default: 20)
-  --order {name,created,modified,random}, -o {name,created,modified,random}
-                        Default: random
-  --transition-duration TRANSITION_DURATION, -td TRANSITION_DURATION
-                        In seconds; 0 = no transitions (default: 0.3)
-  --transitions TRANSITIONS [TRANSITIONS ...]
-                        One or more transitions to use (default: use them all)
-  --exclude-transitions EXCLUDE_TRANSITIONS [EXCLUDE_TRANSITIONS ...]
-                        One or more transitions NOT to use
   --list-transitions    List available transitions and exit
   --print-config        Also print debug info about the current config
   --auto                Enable auto-advance (default)
-  --no-auto             Disable auto-advance
-  --recursive, -R       Iterate through subdirectories
-  --no-recursive        Do not iterate through subdirectories (default)
-  --reverse, -r         Reverse the image order
-  --no-reverse          Do not reverse the image order (default)
-  --tiling              Tile images horizontally (default)
-  --no-tiling           Do not tile images horizontally
+  --no-auto             Negates --auto
+  --debug               Output various debug stuff to console (default)
+  --no-debug            Negates --debug
   --hidden              Include hidden files and directories
-  --no-hidden           Do not include hidden files and directories (default)
+  --no-hidden           Negates --hidden (default)
+  --interval, -i INTERVAL
+                        Auto-advance interval, in seconds (default: 20)
+  --order, -o ORDER     Default: random
+  --recursive, -R       Iterate through subdirectories (default)
+  --no-recursive        Negates --recursive
+  --reverse, -r         Reverse the image order
+  --no-reverse          Negates --reverse (default)
+  --symlinks            Follow symlinks (default)
+  --no-symlinks         Negates --symlinks
+  --tiling              Tile images horizontally (default)
+  --no-tiling           Negates --tiling
+  --transition-duration, -td TRANSITION_DURATION
+                        In seconds; 0 = no transitions (default: 0.3)
+  --transition, -t TRANSITIONS
+                        Transitions to use. Repeat the argument for multiple transitions. Default: use them all
+  --exclude-transition, -et EXCLUDE_TRANSITIONS
+                        Transition NOT to use. Repeat the argument for multiple transitions
 ```
 
-`--transitions` and `--exclude-transitions` govern which effects will be used for transitioning between images. The full list of transitions is available in `slida.transitions.TRANSITION_PAIRS`. Explicit exclusion overrides explicit inclusion. However, there is one special case: `--transitions all` on the command line overrides all other transition settings and simply includes all of them.
+`--transition` and `--exclude-transition` govern which effects will be used for transitioning between images. The full list of transitions is available in `slida.transitions.TRANSITION_PAIRS`. Explicit exclusion overrides explicit inclusion. However, there is one special case: `--transition all` on the command line overrides all other transition settings and simply includes all of them.
 
 Press `?` in the GUI for keyboard mapping info.
 
@@ -66,28 +73,33 @@ All command line arguments in their long versions (OK, except `path`, `help`, `l
 To see exactly how the CLI arguments and config files are parsed, and how the resultant configuration looks, just add `--print-config`:
 
 ```shell
-$ slida --no-auto -td 3 --transitions top-left-squares top-squares --print-config
+$ slida --no-auto -td 3 --transition top-left-squares --transition top-squares --print-config
 CombinedUserConfig(FINAL)
   auto: False
+  debug: True
   hidden: False
   interval: 20
   order: random
   recursive: True
   reverse: False
+  symlinks: True
   tiling: True
   transition-duration: 3.0
   transitions: {'include': ['top-left-squares', 'top-squares']}
 = DefaultUserConfig()
     auto: True
+    debug: False
     hidden: False
     interval: 20
     order: random
     recursive: False
     reverse: False
+    symlinks: True
     tiling: True
     transition-duration: 0.3
     transitions: {}
 + UserConfig(/home/klaatu/.config/slida/slida.yaml)
+    debug: True
     recursive: True
 + UserConfig(CLI)
     auto: False

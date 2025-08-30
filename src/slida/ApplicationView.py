@@ -1,5 +1,6 @@
 import math
 import random
+from typing import TYPE_CHECKING
 
 from klaatu_python.utils import coerce_between
 from PySide6.QtCore import QPointF, QProcess, QRectF, QSize, Qt, QTimer, Slot
@@ -7,26 +8,23 @@ from PySide6.QtGui import (
     QContextMenuEvent,
     QKeyEvent,
     QMouseEvent,
-    QPaintEvent,
     QResizeEvent,
+    QShowEvent,
     QWheelEvent,
 )
-from PySide6.QtWidgets import (
-    QApplication,
-    QGraphicsScene,
-    QGraphicsView,
-    QMenu,
-    QMessageBox,
-    QWidget,
-)
+from PySide6.QtWidgets import QGraphicsScene, QGraphicsView, QMenu, QMessageBox
 
 from slida.AnimPixmapsView import AnimPixmapsView
-from slida.debug import add_live_object, print_live_objects, remove_live_object
-from slida.DirScanner import DirScanner
-from slida.ImageFileList import ImageFileList
+from slida.debug import add_live_object, remove_live_object
+from slida.ImageFileManager import ImageFileManager
 from slida.Toast import Toast
 from slida.transitions import TRANSITION_PAIRS
-from slida.UserConfig import UserConfig
+from slida.utils import NoImagesFound
+
+
+if TYPE_CHECKING:
+    from slida.transitions.pair import TransitionPair
+    from slida.UserConfig import UserConfig
 
 
 class DragTracker:
@@ -39,12 +37,13 @@ class DragTracker:
 
     def update(self, current_pos: QPointF):
         self.latest_diff = current_pos - self.current_pos
-        print("current_pos", current_pos, "self.current_pos", self.current_pos, "self.latest_diff", self.latest_diff)
+        # print("current_pos", current_pos, "self.current_pos", self.current_pos, "self.latest_diff", self.latest_diff)
         self.current_pos = current_pos
         self.total_distance += math.sqrt(pow(self.latest_diff.x(), 2) + pow(self.latest_diff.y(), 2))
 
 
-class SlideshowView(QGraphicsView):
+class ApplicationView(QGraphicsView):
+    __buffered_move_delta: int = 0
     __debug_toast: Toast | None = None
     __drag_tracker: DragTracker | None = None
     __history_idx: int = 0
@@ -53,38 +52,39 @@ class SlideshowView(QGraphicsView):
     __wheel_delta: int = 0
     __zoom: int = 0
 
-    __config: UserConfig
+    __config: "UserConfig"
     __help_toast: Toast
-    __image_files: ImageFileList
+    __image_file_manager: ImageFileManager
     __interval: int
     __pixmaps_view: AnimPixmapsView
     __timer: QTimer
     __toasts: list[Toast]
     __transition_duration: float
 
-    def __init__(self, path: str | list[str], config: UserConfig | None = None, parent: QWidget | None = None):
-        super().__init__(parent)
+    def __init__(self, path: str | list[str], config: "UserConfig"):
+        super().__init__()
 
-        self.__config = config or UserConfig()
+        self.__config = config
         self.__transition_duration = self.__config.transition_duration.value
         self.__interval = self.__config.interval.value
         self.__toasts = []
 
         add_live_object(id(self), self.__class__.__name__)
 
-        self.__image_files = ImageFileList(DirScanner(path, config=self.__config).list())
+        self.__image_file_manager = ImageFileManager(path, self.__config)
 
         if self.__show_debug_toast:
             self.__debug_toast = self.create_toast(None, True)
 
         self.__help_toast = self.create_toast(None, True)
         self.__help_toast.set_text(
-            "[Space]/[->] Move forward  |  [Backspace]/[<-] Move backward  |  [F11] Toggle fullscreen\n" + \
+            "[Space/->] Move forward  |  [Backspace/<-] Move backward  |  [F11] Toggle fullscreen\n" + \
             "[Esc] Leave fullscreen  |  [?] Toggle help  |  [+] Increase interval  |  [-] Decrease interval\n" + \
             "[S] Toggle auto-advance"
         )
 
-        self.__pixmaps_view = AnimPixmapsView()
+        self.__pixmaps_view = AnimPixmapsView(self.__image_file_manager, self.__config)
+        self.__pixmaps_view.transition_finished.connect(self.__on_transition_finished)
         scene = QGraphicsScene(self)
 
         self.setScene(scene)
@@ -105,8 +105,6 @@ class SlideshowView(QGraphicsView):
         if self.__config.auto.value:
             self.__timer.start()
 
-        # self.draw()
-
     @property
     def real_interval_ms(self) -> int:
         return max(int((self.__interval - self.__transition_duration) * 1000), 0)
@@ -123,14 +121,15 @@ class SlideshowView(QGraphicsView):
             if timer_was_active:
                 self.unpause_slideshow()
 
-        if self.__history_idx > 0:
-            menu.addAction("Previous", lambda: self.move_by(-1))
+        action = menu.addAction("Previous [Backspace/<-]", lambda: self.move_by(-1))
+        if self.__history_idx <= 0:
+            action.setDisabled(True)
         if timer_was_active:
-            menu.addAction("Stop slideshow", lambda: self.pause_slideshow(True))
+            menu.addAction("Pause auto-advance [S]", lambda: self.pause_slideshow(True))
         else:
-            menu.addAction("Start slideshow", lambda: self.unpause_slideshow(True))
+            menu.addAction("Start auto-advance [S]", lambda: self.unpause_slideshow(True))
 
-        menu.addAction("Toggle fullscreen", self.toggle_fullscreen)
+        menu.addAction("Toggle fullscreen [F11]", self.toggle_fullscreen)
         menu.addAction("Exit", self.close)
 
         menu.addSeparator()
@@ -183,10 +182,6 @@ class SlideshowView(QGraphicsView):
         remove_live_object(id(self))
         super().deleteLater()
 
-    def draw(self):
-        combo = self.__image_files.prepare_history_entry(self.__history_idx, self.size().toSizeF())
-        self.__pixmaps_view.transition_to(combo)
-
     def keyReleaseEvent(self, event: QKeyEvent):
         combo = event.keyCombination()
 
@@ -234,7 +229,8 @@ class SlideshowView(QGraphicsView):
                     x_offset = transform.m31()
                     y_offset = transform.m32()
                     viewport = QRectF()
-                    print("viewporttransform", self.viewportTransform())
+                    if self.__config.debug.value:
+                        print("viewporttransform", self.viewportTransform())
                     # pos = self.viewport().pos()
                     # self.viewport().move(pos.x() + 10, pos.y() + 10)
                     # self.translate(self.__drag_tracker.latest_diff.x(), self.__drag_tracker.latest_diff.y())
@@ -243,7 +239,8 @@ class SlideshowView(QGraphicsView):
         super().mousePressEvent(event)
 
     def mouseReleaseEvent(self, event: QMouseEvent):
-        print("mouserelease")
+        if self.__config.debug.value:
+            print("mouserelease")
         # if self.__drag_tracker:
         #     tracker = self.__drag_tracker
         #     self.__drag_tracker = None
@@ -259,21 +256,30 @@ class SlideshowView(QGraphicsView):
         history_idx = self.__history_idx + delta
         self.__remaining_time_tmp = None
 
-        if history_idx >= 0 and not self.__pixmaps_view.is_transitioning:
+        if self.__pixmaps_view.is_transitioning:
+            self.__buffered_move_delta = delta
+        elif history_idx >= 0:
             self.__history_idx = history_idx
-            combo = self.__image_files.prepare_history_entry(history_idx, self.size().toSizeF())
 
-            if history_idx % 10 == 0:
-                print_live_objects()
-
-            self.__pixmaps_view.transition_to(
-                combo=combo,
+            self.show_current_screen(
                 transition_pair_type=self.__get_next_transition_pair_type(),
                 transition_duration=self.__transition_duration,
             )
 
             if self.__timer.isActive():
                 self.__timer.start(self.real_interval_ms)
+
+    def show_current_screen(
+        self,
+        transition_pair_type: "type[TransitionPair] | None" = None,
+        transition_duration: float = 0.0,
+    ):
+        try:
+            self.__pixmaps_view.transition_to(self.__history_idx, transition_pair_type, transition_duration)
+        except NoImagesFound as e:
+            box = QMessageBox(text="No images were found.", parent=self)
+            box.buttonClicked.connect(self.close, Qt.ConnectionType.QueuedConnection)
+            box.exec()
 
     def nudge_interval(self, delta: int):
         if self.__interval + delta > 0 and self.__interval + delta - self.__transition_duration >= 0:
@@ -288,10 +294,6 @@ class SlideshowView(QGraphicsView):
             self.__transition_duration = new_value
             self.show_toast(f"Transition duration: {self.__transition_duration} s")
 
-    def paintEvent(self, event: QPaintEvent):
-        super().paintEvent(event)
-        self.quit_if_empty()
-
     def pause_slideshow(self, show_toast: bool = False) -> bool:
         if self.__timer.isActive():
             self.__remaining_time_tmp = self.__timer.remainingTime()
@@ -301,14 +303,6 @@ class SlideshowView(QGraphicsView):
             return True
         return False
 
-    def quit_if_empty(self):
-        combo = self.__image_files.get_history_entry(self.__history_idx)
-
-        if not combo.images:
-            box = QMessageBox(text="No images were found.", parent=self)
-            box.buttonClicked.connect(QApplication.quit, Qt.ConnectionType.DirectConnection)
-            box.exec()
-
     def resizeEvent(self, event: QResizeEvent):
         rect = self.viewport().rect()
         self.scene().setSceneRect(rect)
@@ -316,8 +310,11 @@ class SlideshowView(QGraphicsView):
         for toast in self.__toasts:
             toast.setFixedWidth(rect.width())
         self.__place_toasts()
-        self.draw()
         super().resizeEvent(event)
+
+    def showEvent(self, event: QShowEvent):
+        super().showEvent(event)
+        self.show_current_screen()
 
     def show_toast(self, text: str, timeout: int | None = 3000, keep: bool = False):
         toast = self.create_toast(timeout, keep)
@@ -377,10 +374,12 @@ class SlideshowView(QGraphicsView):
             target_pos = self.mapFromScene(target_scene_pos)
             viewport_center = target_pos - delta_viewport_pos.toPoint()
 
-            print(
-                "target_viewport_pos", target_viewport_pos, "target_scene_pos", target_scene_pos,
-                "delta_viewport_pos", delta_viewport_pos, "target_pos", target_pos, "viewport_center", viewport_center,
-            )
+            if self.__config.debug.value:
+                print(
+                    "target_viewport_pos", target_viewport_pos, "target_scene_pos", target_scene_pos,
+                    "delta_viewport_pos", delta_viewport_pos, "target_pos", target_pos, "viewport_center",
+                    viewport_center,
+                )
 
             self.centerOn(self.mapToScene(viewport_center))
 
@@ -416,6 +415,13 @@ class SlideshowView(QGraphicsView):
     @Slot()
     def __on_timeout(self):
         self.move_by(1)
+
+    @Slot()
+    def __on_transition_finished(self):
+        if self.__buffered_move_delta:
+            delta = self.__buffered_move_delta
+            self.__buffered_move_delta = 0
+            self.move_by(delta)
 
     def __open_ext(self, program: str, path: str):
         process = QProcess(self)

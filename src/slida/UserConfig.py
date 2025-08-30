@@ -1,12 +1,23 @@
 import argparse
 import warnings
 from pathlib import Path
-from typing import Callable, Generic, NotRequired, Sequence, TypedDict, TypeVar
+from typing import (
+    Any,
+    Callable,
+    Generic,
+    Iterable,
+    NotRequired,
+    Sequence,
+    TypedDict,
+    TypeVar,
+)
 
 import platformdirs
 import yaml
+from klaatu_python.utils import nonulls
 
 from slida.DirScanner import FileOrder
+from slida.utils import first_not_null, first_not_null_or_null
 
 
 _T = TypeVar("_T")
@@ -18,23 +29,32 @@ class TransitionConfig(TypedDict):
 
 
 class UserConfigField(Generic[_T]):
-    __default: _T
+    factory: Callable[[Any], _T] | None = None
+    _type: type[_T] | None = None
+    _default: _T
 
-    def __init__(self, type: type[_T], default: _T | Callable[[], _T], value: _T | None = None):
+    def __init__(
+        self,
+        default: _T | Callable[[], _T],
+        value: _T | None = None,
+        help: str | None = None,
+        short_name: str | None = None,
+        extend_argparse: bool = True,
+        choices: Iterable[_T] | None = None,
+    ):
         if isinstance(default, Callable):
-            self.__default = default()
+            self._default = default()
         else:
-            self.__default = default
-        self.__type = type
-        self.__explicit_value = value
+            self._default = default
+        self._explicit_value = value
+        self._help = help
+        self._short_name = short_name
+        self._extend_argparse = extend_argparse
+        self._choices = choices
 
     def __add__(self, other):
         if isinstance(other, self.__class__):
-            return self.__class__(
-                type=self.__type,
-                default=self.default,
-                value=other.explicit_value if other.explicit_value is not None else self.explicit_value,
-            )
+            return self.copy(value=other.explicit_value)
         return NotImplemented
 
     def __repr__(self):
@@ -42,42 +62,112 @@ class UserConfigField(Generic[_T]):
 
     @property
     def default(self) -> _T:
-        return self.__default
+        return self._default
 
     @property
     def explicit_value(self) -> _T | None:
-        return self.__explicit_value
-
-    @property
-    def type(self) -> type[_T]:
-        return self.__type
+        return self._explicit_value
 
     @property
     def value(self) -> _T:
-        return self.__explicit_value if self.__explicit_value is not None else self.__default
+        return self._explicit_value if self._explicit_value is not None else self._default
 
     @value.setter
-    def value(self, v: _T):
-        if not issubclass(self.__type, type(v)):
-            raise TypeError(f"{v} is not of type '{self.__type}'")
-        self.__explicit_value = v
+    def value(self, v: Any):
+        if self.factory:
+            self._explicit_value = self.factory(v)
+        else:
+            self._explicit_value = v
 
-    def copy(self):
-        return self.__class__(type=self.__type, default=self.__default, value=self.__explicit_value)
+    def copy(
+        self,
+        default: _T | Callable[[], _T] | None = None,
+        value: _T | None = None,
+        help: str | None = None,
+        short_name: str | None = None,
+        extend_argparse: bool | None = None,
+    ):
+        return self.__class__(
+            default=first_not_null(default, self._default),
+            value=first_not_null_or_null(value, self._explicit_value),
+            help=first_not_null_or_null(help, self._help),
+            short_name=first_not_null_or_null(short_name, self._short_name),
+            extend_argparse=first_not_null(extend_argparse, self._extend_argparse),
+        )
+
+    def extend_argument_parser(self, parser: argparse.ArgumentParser, name: str):
+        if self._extend_argparse:
+            hyphenated_name = name.replace("_", "-")
+            parser.add_argument(
+                *nonulls([f"--{hyphenated_name}", f"-{self._short_name}" if self._short_name else None]),
+                help=(self._help + f" (default: {self.value})") if self._help else f"Default: {self.value}",
+                choices=self._choices,
+            )
+
+
+class BooleanConfigField(UserConfigField[bool]):
+    factory = bool
+
+    def extend_argument_parser(self, parser: argparse.ArgumentParser, name: str):
+        if self._extend_argparse:
+            hyphenated_name = name.replace("_", "-")
+            mutex = parser.add_mutually_exclusive_group()
+            mutex.add_argument(
+                *nonulls([f"--{hyphenated_name}", f"-{self._short_name}" if self._short_name else None]),
+                action="store_const",
+                const=True,
+                help=(self._help + (" (default)" if self.value else "")) if self._help else None,
+            )
+            mutex.add_argument(
+                f"--no-{hyphenated_name}",
+                action="store_const",
+                const=False,
+                dest=name,
+                help=f"Negates --{hyphenated_name}" + (" (default)" if not self.value else ""),
+            )
+
+
+class TransitionConfigField(UserConfigField[TransitionConfig | dict]):
+    def extend_argument_parser(self, parser: argparse.ArgumentParser, name: str):
+        if self._extend_argparse:
+            parser.add_argument(
+                "--transition",
+                "-t",
+                dest="transitions",
+                action="append",
+                help="Transitions to use. Repeat the argument for multiple transitions. Default: use them all",
+            )
+            parser.add_argument(
+                "--exclude-transition",
+                "-et",
+                dest="exclude_transitions",
+                action="append",
+                help="Transition NOT to use. Repeat the argument for multiple transitions",
+            )
+
+
+class IntConfigField(UserConfigField[int]):
+    factory = int
+
+
+class FloatConfigField(UserConfigField[float]):
+    factory = float
 
 
 class UserConfig:
     source: str | None
 
-    auto = UserConfigField(bool, True)
-    hidden = UserConfigField(bool, False)
-    interval = UserConfigField(int, 20)
-    order = UserConfigField(FileOrder, FileOrder.RANDOM)
-    recursive = UserConfigField(bool, False)
-    reverse = UserConfigField(bool, False)
-    tiling = UserConfigField(bool, True)
-    transition_duration = UserConfigField(float, 0.3)
-    transitions = UserConfigField(TransitionConfig, dict)
+    interval = IntConfigField(20, help="Auto-advance interval, in seconds", short_name="i")
+    order = UserConfigField(FileOrder.RANDOM, short_name="o", choices=FileOrder)
+    transition_duration = FloatConfigField(0.3, short_name="td", help="In seconds; 0 = no transitions")
+    transitions = TransitionConfigField(dict)
+    auto = BooleanConfigField(True, help="Enable auto-advance")
+    debug = BooleanConfigField(False, help="Output various debug stuff to console")
+    hidden = BooleanConfigField(False, help="Include hidden files and directories")
+    recursive = BooleanConfigField(False, help="Iterate through subdirectories", short_name="R")
+    reverse = BooleanConfigField(False, help="Reverse the image order", short_name="r")
+    symlinks = BooleanConfigField(True, help="Follow symlinks")
+    tiling = BooleanConfigField(True, help="Tile images horizontally")
 
     def __init__(self, source: str | None = None):
         self.source = source
@@ -101,6 +191,17 @@ class UserConfig:
             raise ValueError("Minimum interval is 1 s.")
         if self.interval.value < self.transition_duration.value:
             raise ValueError("Interval cannot be less than transition duration.")
+
+    def correct_invalid(self):
+        if self.interval.value < self.transition_duration.value:
+            self.interval.value = self.interval.default
+            self.transition_duration.value = self.transition_duration.default
+        if self.interval.value < 1:
+            self.interval.value = self.interval.default
+
+    def extend_argument_parser(self, parser: argparse.ArgumentParser):
+        for field_name, field in self.get_fields().items():
+            field.extend_argument_parser(parser, field_name)
 
     def get_fields(self) -> dict[str, UserConfigField]:
         fields = {}
@@ -133,11 +234,11 @@ class UserConfig:
 
         for field_name, field in config.get_fields().items():
             arg_name = field_name.replace("_", "-")
-            if arg_name in d and issubclass(field.type, type(d[arg_name])):
+            if arg_name in d:
                 field.value = d[arg_name]
-            elif field.type == bool:
+            elif isinstance(field, BooleanConfigField):
                 no_arg_name = "no-" + arg_name
-                if no_arg_name in d and isinstance(d[no_arg_name], bool):
+                if no_arg_name in d:
                     field.value = not d[no_arg_name]
 
         return config
@@ -162,8 +263,6 @@ class CombinedUserConfig(UserConfig):
     def __init__(self, source: str | None = None):
         super().__init__(source)
         self.subconfigs = []
-        # for field in self.get_fields().values():
-        #     field.value = field.default
 
     def __repr__(self):
         result = self.repr()

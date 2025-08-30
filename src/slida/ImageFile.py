@@ -1,39 +1,46 @@
-from PIL import Image
-from PySide6.QtCore import QSizeF
+from typing import TYPE_CHECKING
+
+from PySide6.QtCore import QSize, QSizeF
+from PySide6.QtGui import QPixmap
+
+
+if TYPE_CHECKING:
+    from slida.DirScanner import File
 
 
 class ImageFile:
-    __filename: str
-    __size: QSizeF | None = None
+    file: "File"
+    __is_valid: bool | None = None
+    __size: QSize | None = None
 
     @property
-    def aspect_ratio(self) -> float:
-        size = self.size
-        return size.width() / size.height()
+    def is_valid(self) -> bool:
+        if self.__is_valid is None:
+            pm = QPixmap(self.file.path)
+            self.__is_valid = not pm.isNull() and pm.height() > 0 and pm.width() > 0
+        return self.__is_valid
 
     @property
-    def filename(self):
-        return self.__filename
-
-    @property
-    def size(self) -> QSizeF:
+    def size(self) -> QSize:
         if self.__size is None:
-            with Image.open(self.__filename) as im:
-                self.__size = QSizeF(im.width, im.height)
+            pm = QPixmap(self.file.path)
+            self.__size = pm.size()
         return self.__size
 
-    def __init__(self, filename: str):
-        self.__filename = filename
+    def __init__(self, file: "File"):
+        self.file = file
 
     def __eq__(self, other):
-        return isinstance(other, self.__class__) and other.filename == self.__filename
+        return isinstance(other, self.__class__) and other.file.path == self.file.path
 
     def __hash__(self):
-        return hash(self.__filename)
+        return hash(self.file.path)
 
     def __repr__(self):
-        return f"<ImageFile filename={self.__filename}>"
+        return f"<ImageFile path={self.file.path}>"
+
+    def get_scaled_qpixmap(self, height: float) -> QPixmap:
+        return QPixmap(self.file.path).scaled(self.scaled_size(height).toSize())
 
     def scaled_size(self, height: float) -> QSizeF:
-        size = self.size
-        return QSizeF(size.width() * (height / size.height()), height)
+        return QSizeF(self.size.width() * (height / self.size.height()), height)

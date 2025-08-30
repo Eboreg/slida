@@ -6,117 +6,25 @@ from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication
 
 from slida import __version__
-from slida.DirScanner import FileOrder
-from slida.SlideshowView import SlideshowView
+from slida.ApplicationView import ApplicationView
 from slida.transitions import TRANSITION_PAIRS
 from slida.UserConfig import CombinedUserConfig, DefaultUserConfig
 
 
 def main():
     parser = argparse.ArgumentParser()
-    default_config = DefaultUserConfig()
+
+    try:
+        default_config = CombinedUserConfig.read()
+        default_config.correct_invalid()
+    except Exception as e:
+        default_config = DefaultUserConfig()
 
     parser.add_argument("path", default="", nargs="*")
-    parser.add_argument(
-        "--interval",
-        "-i",
-        type=int,
-        help=f"Auto-advance interval, in seconds (default: {default_config.interval.value})",
-    )
-    parser.add_argument(
-        "--order",
-        "-o",
-        type=FileOrder,
-        choices=FileOrder,
-        help=f"Default: {default_config.order.value}",
-    )
-    parser.add_argument(
-        "--transition-duration",
-        "-td",
-        type=float,
-        help=f"In seconds; 0 = no transitions (default: {default_config.transition_duration.value})",
-    )
-    parser.add_argument("--transitions", nargs="+", help="One or more transitions to use (default: use them all)")
-    parser.add_argument("--exclude-transitions", nargs="+", help="One or more transitions NOT to use")
     parser.add_argument("--list-transitions", action="store_true", help="List available transitions and exit")
     parser.add_argument("--print-config", action="store_true", help="Also print debug info about the current config")
 
-    auto = parser.add_mutually_exclusive_group()
-    auto.add_argument(
-        "--auto",
-        action="store_const",
-        help="Enable auto-advance" + (" (default)" if default_config.auto.value else ""),
-        const=True,
-    )
-    auto.add_argument(
-        "--no-auto",
-        action="store_const",
-        help="Disable auto-advance" + (" (default)" if not default_config.auto.value else ""),
-        const=False,
-        dest="auto",
-    )
-
-    recursive = parser.add_mutually_exclusive_group()
-    recursive.add_argument(
-        "--recursive",
-        "-R",
-        action="store_const",
-        const=True,
-        help="Iterate through subdirectories" + (" (default)" if default_config.recursive.value else ""),
-    )
-    recursive.add_argument(
-        "--no-recursive",
-        action="store_const",
-        const=False,
-        dest="recursive",
-        help="Do not iterate through subdirectories" + (" (default)" if not default_config.recursive.value else ""),
-    )
-
-    reverse = parser.add_mutually_exclusive_group()
-    reverse.add_argument(
-        "--reverse",
-        "-r",
-        action="store_const",
-        const=True,
-        help="Reverse the image order" + (" (default)" if default_config.reverse.value else ""),
-    )
-    reverse.add_argument(
-        "--no-reverse",
-        action="store_const",
-        const=False,
-        dest="reverse",
-        help="Do not reverse the image order" + (" (default)" if not default_config.reverse.value else ""),
-    )
-
-    tiling = parser.add_mutually_exclusive_group()
-    tiling.add_argument(
-        "--tiling",
-        action="store_const",
-        const=True,
-        help="Tile images horizontally" + (" (default)" if default_config.tiling.value else ""),
-    )
-    tiling.add_argument(
-        "--no-tiling",
-        action="store_const",
-        const=False,
-        dest="tiling",
-        help="Do not tile images horizontally" + (" (default)" if not default_config.tiling.value else ""),
-    )
-
-    hidden = parser.add_mutually_exclusive_group()
-    hidden.add_argument(
-        "--hidden",
-        action="store_const",
-        const=True,
-        help="Include hidden files and directories" + (" (default)" if default_config.hidden.value else ""),
-    )
-    hidden.add_argument(
-        "--no-hidden",
-        action="store_const",
-        const=False,
-        dest="hidden",
-        help="Do not include hidden files and directories" + (" (default)" if not default_config.hidden.value else ""),
-    )
+    default_config.extend_argument_parser(parser)
 
     args = parser.parse_args()
     custom_dirs = [d for d in [Path(p) for p in args.path] if d.is_dir()]
@@ -145,9 +53,11 @@ def main():
     app = QApplication([])
     app.setWindowIcon(QIcon(str(Path(__file__).parent / "slida.png")))
     app.setApplicationName("Slida v" + __version__)
-    app.lastWindowClosed.connect(app.quit)
-    slida = SlideshowView(args.path, config=config)
+    app.setQuitOnLastWindowClosed(True)
+
+    slida = ApplicationView(args.path, config=config)
     slida.show()
+
     sys.exit(app.exec())
 
 
