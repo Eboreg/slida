@@ -1,13 +1,14 @@
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QPointF, QSizeF, Qt
-from PySide6.QtGui import QImage, QPainter
+from PySide6.QtCore import QPointF, QSizeF
+from PySide6.QtGui import QImage, QPainter, QPixmap, QPixmapCache
 
-from slida.utils import get_centered_content_rect
+from slida.config.base import Config
+from slida.qt.utils import get_centered_content_rect
 
 
 if TYPE_CHECKING:
-    from slida.ImageFile import ImageFile
+    from slida.files.image_file import ImageFile
 
 
 class ImageScreen:
@@ -26,12 +27,23 @@ class ImageScreen:
 
     def get_inner_qimage(self):
         if self.__inner_qimage is None:
+            config = Config.current()
             self.__inner_qimage = QImage(self.size.toSize(), QImage.Format.Format_RGB32)
+            self.__inner_qimage.fill(config.background.value)
             qpainter = QPainter(self.__inner_qimage)
             left = 0
+            height = self.size.toSize().height()
 
             for image in self.images:
-                qpixmap = image.get_scaled_qpixmap(self.size.height())
+                if config.debug.value:
+                    print(f"Painting {image.path} (file size={image.stat.st_size}, image size={image.size})")
+                cache_key = f"{image.path}:{height}"
+                qpixmap = QPixmap()
+
+                if not QPixmapCache.find(cache_key, qpixmap):
+                    qpixmap = QPixmap(image.path).scaledToHeight(height)
+                    QPixmapCache.insert(cache_key, qpixmap)
+
                 qpainter.drawPixmap(QPointF(left, 0), qpixmap)
                 left += qpixmap.width()
 
@@ -42,7 +54,7 @@ class ImageScreen:
     def get_outer_qimage(self):
         if self.__outer_qimage is None:
             self.__outer_qimage = QImage(self.bounds.toSize(), QImage.Format.Format_RGB32)
-            self.__outer_qimage.fill(Qt.GlobalColor.black)
+            self.__outer_qimage.fill(Config.current().background.value)
             if not self.size.isEmpty():
                 qpainter = QPainter(self.__outer_qimage)
                 content = self.get_inner_qimage()
@@ -52,7 +64,7 @@ class ImageScreen:
 
     def __get_size(self) -> QSizeF:
         height = self.bounds.height()
-        width = sum((f.scaled_size(self.bounds.height()).width() for f in self.images), 0.0)
+        width = sum((f.scaled_width(self.bounds.height()) for f in self.images), 0.0)
 
         if width > self.bounds.width():
             height = self.bounds.height() * (self.bounds.width() / width)

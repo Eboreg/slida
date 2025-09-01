@@ -15,8 +15,8 @@ from PySide6.QtCore import (
 from PySide6.QtGui import QImage, QPainter, QPixmap, qRgba
 
 from slida.debug import add_live_object, remove_live_object
+from slida.qt.utils import get_subsquare_count
 from slida.transitions.base import Transition
-from slida.utils import get_subsquare_count
 
 
 class SubImage(QObject):

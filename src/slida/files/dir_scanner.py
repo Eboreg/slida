@@ -1,49 +1,21 @@
-import dataclasses
-import enum
 import mimetypes
 import os
-from typing import TYPE_CHECKING, Generator
+from typing import Generator
 
-
-if TYPE_CHECKING:
-    from slida.UserConfig import UserConfig
-
-
-class FileOrder(enum.StrEnum):
-    NAME = "name"
-    CREATED = "created"
-    MODIFIED = "modified"
-    RANDOM = "random"
-
-
-@dataclasses.dataclass
-class File:
-    path: str
-    stat: dataclasses.InitVar[os.stat_result]
-    ctime: float = dataclasses.field(init=False)
-    mtime: float = dataclasses.field(init=False)
-    ino: int = dataclasses.field(init=False)
-    is_valid: bool | None = dataclasses.field(init=False, default=None)
-
-    def __post_init__(self, stat: os.stat_result):
-        self.ctime = stat.st_ctime
-        self.mtime = stat.st_mtime
-        self.ino = stat.st_ino
+from slida.config import Config
+from slida.files.image_file import ImageFile
 
 
 class DirScanner:
     is_finished: bool = False
 
-    def __init__(self, root_paths: str | list[str], config: "UserConfig | None" = None):
-        from slida.UserConfig import UserConfig
-
+    def __init__(self, root_paths: str | list[str]):
         self.root_paths = root_paths if isinstance(root_paths, list) else [root_paths]
-        self.config = config or UserConfig()
         self.visited_inodes: list[int] = []
 
-    def scandir(self) -> "Generator[File]":
+    def scandir(self, max_size: int = 0) -> "Generator[ImageFile]":
         for path in self.root_paths:
-            yield from self.__scandir(path, is_root=True)
+            yield from self.__scandir(path, is_root=True, max_size=max_size)
         self.is_finished = True
 
     def __inode(self, entry: os.DirEntry | str):
@@ -66,29 +38,33 @@ class DirScanner:
     def __path(self, entry: os.DirEntry | str) -> str:
         return entry.path if isinstance(entry, os.DirEntry) else entry
 
-    def __scandir(self, entry: os.DirEntry | str, is_root: bool = False) -> "Generator[File]":
+    def __scandir(self, entry: os.DirEntry | str, is_root: bool = False, max_size: int = 0) -> "Generator[ImageFile]":
+        config = Config.current()
+
         if not is_root:
-            if not self.config.hidden.value and self.__name(entry).startswith("."):
+            if not config.hidden.value and self.__name(entry).startswith("."):
                 return
-            if not self.config.symlinks.value and self.__is_symlink(entry):
+            if not config.symlinks.value and self.__is_symlink(entry):
                 return
 
         if self.__is_dir(entry):
-            if is_root or self.config.recursive.value:
+            if is_root or config.recursive.value:
                 inode = self.__inode(entry)
                 if inode not in self.visited_inodes:
                     self.visited_inodes.append(inode)
                     with os.scandir(entry) as dir:
                         for subentry in dir:
-                            yield from self.__scandir(subentry)
+                            yield from self.__scandir(subentry, max_size=max_size)
 
         elif self.__is_file(entry):
             mimetype = mimetypes.guess_file_type(self.__path(entry))
             if mimetype[0] is not None and mimetype[0].startswith("image/"):
                 inode = self.__inode(entry)
                 if inode not in self.visited_inodes:
+                    stat = self.__stat(entry)
                     self.visited_inodes.append(inode)
-                    yield File(path=self.__path(entry), stat=self.__stat(entry))
+                    if max_size == 0 or stat.st_size <= max_size:
+                        yield ImageFile(path=self.__path(entry), stat=stat)
 
     def __stat(self, entry: os.DirEntry | str) -> os.stat_result:
         return entry.stat() if isinstance(entry, os.DirEntry) else os.stat(entry)

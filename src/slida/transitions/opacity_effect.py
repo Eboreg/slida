@@ -12,6 +12,7 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import QGraphicsOpacityEffect
 
+from slida.config.base import Config
 from slida.transitions.base import EffectTransition
 
 
@@ -20,7 +21,7 @@ class OpacityEffectTransition(EffectTransition[QGraphicsOpacityEffect]):
     def create_brush(self, value: float) -> QGradient:
         ...
 
-    def get_black_pos(self, progress: float) -> float:
+    def get_bg_pos(self, progress: float) -> float:
         return progress
 
     def get_effect(self):
@@ -45,9 +46,9 @@ class OpacityEffectTransition(EffectTransition[QGraphicsOpacityEffect]):
             effect.setEnabled(True)
             effect.setOpacity(1.0)
             transparent_pos = coerce_between(self.get_transparent_pos(value), 0.0, 1.0)
-            black_pos = coerce_between(self.get_black_pos(value), 0.0, 1.0)
+            bg_pos = coerce_between(self.get_bg_pos(value), 0.0, 1.0)
             brush.setColorAt(transparent_pos, Qt.GlobalColor.transparent)
-            brush.setColorAt(black_pos, Qt.GlobalColor.black)
+            brush.setColorAt(bg_pos, Config.current().background.value)
             effect.setOpacityMask(brush)
         else:
             effect.setEnabled(False)
@@ -75,7 +76,7 @@ class BlindsOut(OpacityEffectTransition):
 
         return brush
 
-    def get_black_pos(self, progress):
+    def get_bg_pos(self, progress):
         return progress + 0.01
 
 
@@ -85,7 +86,7 @@ class ClockfaceOut(OpacityEffectTransition):
     def create_brush(self, value):
         return QConicalGradient(self.parent().rect().center(), 0)
 
-    def get_black_pos(self, progress):
+    def get_bg_pos(self, progress):
         return progress + 0.02
 
 
@@ -116,5 +117,5 @@ class RadialOut(OpacityEffectTransition):
 
         return brush
 
-    def get_black_pos(self, progress):
+    def get_bg_pos(self, progress):
         return progress + 0.1

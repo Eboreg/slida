@@ -14,17 +14,17 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import QGraphicsScene, QGraphicsView, QMenu, QMessageBox
 
-from slida.AnimPixmapsView import AnimPixmapsView
+from slida.config import Config
 from slida.debug import add_live_object, remove_live_object
-from slida.ImageFileManager import ImageFileManager
-from slida.Toast import Toast
+from slida.files.manager import ImageFileManager
+from slida.qt.image_view import ImageView
+from slida.qt.toast import Toast
 from slida.transitions import TRANSITION_PAIRS
 from slida.utils import NoImagesFound
 
 
 if TYPE_CHECKING:
     from slida.transitions.pair import TransitionPair
-    from slida.UserConfig import UserConfig
 
 
 class DragTracker:
@@ -52,26 +52,26 @@ class ApplicationView(QGraphicsView):
     __wheel_delta: int = 0
     __zoom: int = 0
 
-    __config: "UserConfig"
     __help_toast: Toast
     __image_file_manager: ImageFileManager
+    __image_view: ImageView
     __interval: int
-    __pixmaps_view: AnimPixmapsView
     __timer: QTimer
     __toasts: list[Toast]
     __transition_duration: float
 
-    def __init__(self, path: str | list[str], config: "UserConfig"):
+    def __init__(self, path: str | list[str]):
         super().__init__()
 
-        self.__config = config
-        self.__transition_duration = self.__config.transition_duration.value
-        self.__interval = self.__config.interval.value
+        config = Config.current()
+
+        self.__transition_duration = config.transition_duration.value
+        self.__interval = config.interval.value
         self.__toasts = []
 
         add_live_object(id(self), self.__class__.__name__)
 
-        self.__image_file_manager = ImageFileManager(path, self.__config)
+        self.__image_file_manager = ImageFileManager(path)
 
         if self.__show_debug_toast:
             self.__debug_toast = self.create_toast(None, True)
@@ -83,8 +83,8 @@ class ApplicationView(QGraphicsView):
             "[S] Toggle auto-advance"
         )
 
-        self.__pixmaps_view = AnimPixmapsView(self.__image_file_manager, self.__config)
-        self.__pixmaps_view.transition_finished.connect(self.__on_transition_finished)
+        self.__image_view = ImageView(self.__image_file_manager)
+        self.__image_view.transition_finished.connect(self.__on_transition_finished)
         scene = QGraphicsScene(self)
 
         self.setScene(scene)
@@ -92,7 +92,7 @@ class ApplicationView(QGraphicsView):
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.DefaultContextMenu)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         # self.setMouseTracking(False)
-        scene.addWidget(self.__pixmaps_view)
+        scene.addWidget(self.__image_view)
 
         if self.__show_debug_toast:
             debug_timer = QTimer(self, interval=200)
@@ -102,7 +102,7 @@ class ApplicationView(QGraphicsView):
         self.__timer = QTimer(self, interval=self.real_interval_ms)
         self.__timer.timeout.connect(self.__on_timeout)
 
-        if self.__config.auto.value:
+        if config.auto.value:
             self.__timer.start()
 
     @property
@@ -134,7 +134,7 @@ class ApplicationView(QGraphicsView):
 
         menu.addSeparator()
 
-        for path in self.__pixmaps_view.get_current_filenames():
+        for path in self.__image_view.get_current_filenames():
             if "/" not in path:
                 path = f"./{path}"
             directory, basename = path.rsplit("/", 1)
@@ -229,7 +229,7 @@ class ApplicationView(QGraphicsView):
                     x_offset = transform.m31()
                     y_offset = transform.m32()
                     viewport = QRectF()
-                    if self.__config.debug.value:
+                    if Config.current().debug.value:
                         print("viewporttransform", self.viewportTransform())
                     # pos = self.viewport().pos()
                     # self.viewport().move(pos.x() + 10, pos.y() + 10)
@@ -239,7 +239,7 @@ class ApplicationView(QGraphicsView):
         super().mousePressEvent(event)
 
     def mouseReleaseEvent(self, event: QMouseEvent):
-        if self.__config.debug.value:
+        if Config.current().debug.value:
             print("mouserelease")
         # if self.__drag_tracker:
         #     tracker = self.__drag_tracker
@@ -256,7 +256,7 @@ class ApplicationView(QGraphicsView):
         history_idx = self.__history_idx + delta
         self.__remaining_time_tmp = None
 
-        if self.__pixmaps_view.is_transitioning:
+        if self.__image_view.is_transitioning:
             self.__buffered_move_delta = delta
         elif history_idx >= 0:
             self.__history_idx = history_idx
@@ -275,7 +275,7 @@ class ApplicationView(QGraphicsView):
         transition_duration: float = 0.0,
     ):
         try:
-            self.__pixmaps_view.transition_to(self.__history_idx, transition_pair_type, transition_duration)
+            self.__image_view.transition_to(self.__history_idx, transition_pair_type, transition_duration)
         except NoImagesFound as e:
             box = QMessageBox(text="No images were found.", parent=self)
             box.buttonClicked.connect(self.close, Qt.ConnectionType.QueuedConnection)
@@ -306,7 +306,7 @@ class ApplicationView(QGraphicsView):
     def resizeEvent(self, event: QResizeEvent):
         rect = self.viewport().rect()
         self.scene().setSceneRect(rect)
-        self.__pixmaps_view.setFixedSize(rect.size())
+        self.__image_view.setFixedSize(rect.size())
         for toast in self.__toasts:
             toast.setFixedWidth(rect.width())
         self.__place_toasts()
@@ -374,7 +374,7 @@ class ApplicationView(QGraphicsView):
             target_pos = self.mapFromScene(target_scene_pos)
             viewport_center = target_pos - delta_viewport_pos.toPoint()
 
-            if self.__config.debug.value:
+            if Config.current().debug.value:
                 print(
                     "target_viewport_pos", target_viewport_pos, "target_scene_pos", target_scene_pos,
                     "delta_viewport_pos", delta_viewport_pos, "target_pos", target_pos, "viewport_center",
@@ -391,11 +391,12 @@ class ApplicationView(QGraphicsView):
 
     def __get_transition_pair_types(self):
         pairs = TRANSITION_PAIRS
+        config = Config.current()
 
-        if self.__config.transitions.value is not None:
+        if config.transitions.value is not None:
             names = {p.name for p in pairs}
-            include = set(name.replace("_", "-") for name in self.__config.transitions.value.get("include", names))
-            exclude = set(name.replace("_", "-") for name in self.__config.transitions.value.get("exclude", []))
+            include = set(name.replace("_", "-") for name in config.transitions.value.get("include", names))
+            exclude = set(name.replace("_", "-") for name in config.transitions.value.get("exclude", []))
 
             if "all" not in include:
                 names &= include
