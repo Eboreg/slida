@@ -17,9 +17,9 @@ Some nice (?) features:
 
 ```shell
 $ slida --help
-usage: slida [-h] [--list-transitions] [--print-config] [--auto | --no-auto] [--debug | --no-debug] [--hidden | --no-hidden] [--interval INTERVAL] [--order ORDER] [--recursive |
-             --no-recursive] [--reverse | --no-reverse] [--symlinks | --no-symlinks] [--tiling | --no-tiling] [--transition-duration TRANSITION_DURATION] [--transition TRANSITIONS]
-             [--exclude-transition EXCLUDE_TRANSITIONS]
+usage: slida [-h] [--list-transitions] [--print-config] [--auto | --no-auto] [--background BACKGROUND] [--debug | --no-debug] [--hidden | --no-hidden] [--interval INTERVAL]
+             [--max-file-size MAX_FILE_SIZE] [--order {name,created,modified,random,size}] [--recursive | --no-recursive] [--reverse | --no-reverse] [--symlinks | --no-symlinks] [--tiling |
+             --no-tiling] [--transition-duration TRANSITION_DURATION] [--transition TRANSITIONS] [--exclude-transition EXCLUDE_TRANSITIONS]
              [path ...]
 
 positional arguments:
@@ -31,13 +31,18 @@ options:
   --print-config        Also print debug info about the current config
   --auto                Enable auto-advance (default)
   --no-auto             Negates --auto
+  --background BACKGROUND
+                        For valid values, see: https://doc.qt.io/qt-6/qcolor.html#fromString (default: black)
   --debug               Output various debug stuff to console (default)
   --no-debug            Negates --debug
   --hidden              Include hidden files and directories
   --no-hidden           Negates --hidden (default)
   --interval, -i INTERVAL
                         Auto-advance interval, in seconds (default: 20)
-  --order, -o ORDER     Default: random
+  --max-file-size MAX_FILE_SIZE
+                        Maximum file size (set to 0 to disable) (default: 20000000)
+  --order, -o {name,created,modified,random,size}
+                        Default: random
   --recursive, -R       Iterate through subdirectories (default)
   --no-recursive        Negates --recursive
   --reverse, -r         Reverse the image order
@@ -49,7 +54,7 @@ options:
   --transition-duration, -td TRANSITION_DURATION
                         In seconds; 0 = no transitions (default: 0.3)
   --transition, -t TRANSITIONS
-                        Transitions to use. Repeat the argument for multiple transitions. Default: use them all
+                        Transition to use. Repeat the argument for multiple transitions. Default: use them all
   --exclude-transition, -et EXCLUDE_TRANSITIONS
                         Transition NOT to use. Repeat the argument for multiple transitions
 ```
@@ -74,11 +79,13 @@ To see exactly how the CLI arguments and config files are parsed, and how the re
 
 ```shell
 $ slida --no-auto -td 3 --transition top-left-squares --transition top-squares --print-config
-CombinedUserConfig(FINAL)
+CombinedConfig(FINAL)
   auto: False
+  background: black
   debug: True
   hidden: False
   interval: 20
+  max-file-size: 20000000
   order: random
   recursive: True
   reverse: False
@@ -86,11 +93,13 @@ CombinedUserConfig(FINAL)
   tiling: True
   transition-duration: 3.0
   transitions: {'include': ['top-left-squares', 'top-squares']}
-= DefaultUserConfig()
+= Config(DEFAULT)
     auto: True
+    background: black
     debug: False
     hidden: False
     interval: 20
+    max-file-size: 20000000
     order: random
     recursive: False
     reverse: False
@@ -98,10 +107,10 @@ CombinedUserConfig(FINAL)
     tiling: True
     transition-duration: 0.3
     transitions: {}
-+ UserConfig(/home/klaatu/.config/slida/slida.yaml)
++ Config(/home/klaatu/.config/slida/slida.yaml)
     debug: True
     recursive: True
-+ UserConfig(CLI)
++ Config(CLI)
     auto: False
     transition-duration: 3.0
     transitions: {'include': ['top-left-squares', 'top-squares']}
