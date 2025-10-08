@@ -35,8 +35,6 @@ from slida.transitions.various import (
     FadeOut,
     FlashIn,
     Grow,
-    HingeIn,
-    HingeOut,
     Noop,
     Shrink,
 )
@@ -53,7 +51,6 @@ TRANSITION_PAIRS: list[type[TransitionPair]] = [
     transition_pair_factory("flash", FlashIn, Noop),
     transition_pair_factory("flip-x", FlipXIn, FlipXOut, SequentialTransitionPair),
     transition_pair_factory("flip-y", FlipYIn, FlipYOut, SequentialTransitionPair),
-    transition_pair_factory("hinge", HingeIn, HingeOut),
     transition_pair_factory("implode", Noop, ImplodeOut),
     transition_pair_factory("pixelate", PixelateIn, PixelateOut, SequentialTransitionPair),
     transition_pair_factory("radial", Noop, RadialOut),

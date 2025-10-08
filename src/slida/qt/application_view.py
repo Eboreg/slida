@@ -12,7 +12,13 @@ from PySide6.QtGui import (
     QShowEvent,
     QWheelEvent,
 )
-from PySide6.QtWidgets import QGraphicsScene, QGraphicsView, QMenu, QMessageBox
+from PySide6.QtWidgets import (
+    QApplication,
+    QGraphicsScene,
+    QGraphicsView,
+    QMenu,
+    QMessageBox,
+)
 
 from slida.config import Config
 from slida.debug import add_live_object, remove_live_object
@@ -53,6 +59,7 @@ class ApplicationView(QGraphicsView):
     __zoom: int = 0
 
     __help_toast: Toast
+    __hide_cursor_timer: QTimer
     __image_file_manager: ImageFileManager
     __image_view: ImageView
     __interval: int
@@ -102,6 +109,10 @@ class ApplicationView(QGraphicsView):
         self.__timer = QTimer(self, interval=self.real_interval_ms)
         self.__timer.timeout.connect(self.__on_timeout)
 
+        self.__hide_cursor_timer = QTimer(self, singleShot=True, interval=1000)
+        self.__hide_cursor_timer.timeout.connect(self.__hide_cursor)
+        self.__hide_cursor_timer.start()
+
         if config.auto.value:
             self.__timer.start()
 
@@ -116,8 +127,11 @@ class ApplicationView(QGraphicsView):
     def contextMenuEvent(self, event: QContextMenuEvent):
         menu = QMenu(self)
         timer_was_active = self.pause_slideshow()
+        QApplication.setOverrideCursor(Qt.CursorShape.ArrowCursor)
+        self.__hide_cursor_timer.stop()
 
         def on_hide():
+            self.__hide_cursor_timer.start()
             if timer_was_active:
                 self.unpause_slideshow()
 
@@ -208,6 +222,11 @@ class ApplicationView(QGraphicsView):
             elif combo.key() == Qt.Key.Key_Question:
                 self.toggle_help_toast()
 
+    def mouseMoveEvent(self, event: QMouseEvent):
+        super().mouseMoveEvent(event)
+        QApplication.setOverrideCursor(Qt.CursorShape.ArrowCursor)
+        self.__hide_cursor_timer.start()
+
     def _mouseMoveEvent(self, event: QMouseEvent):
         if event.buttons():
             if not self.__drag_tracker:
@@ -235,8 +254,10 @@ class ApplicationView(QGraphicsView):
                     # self.viewport().move(pos.x() + 10, pos.y() + 10)
                     # self.translate(self.__drag_tracker.latest_diff.x(), self.__drag_tracker.latest_diff.y())
 
-    def _mousePressEvent(self, event: QMouseEvent):
+    def mousePressEvent(self, event: QMouseEvent):
         super().mousePressEvent(event)
+        QApplication.setOverrideCursor(Qt.CursorShape.ArrowCursor)
+        self.__hide_cursor_timer.start()
 
     def mouseReleaseEvent(self, event: QMouseEvent):
         if Config.current().debug.value:
@@ -404,6 +425,10 @@ class ApplicationView(QGraphicsView):
                 pairs = [p for p in pairs if p.name in names]
 
         return pairs
+
+    @Slot()
+    def __hide_cursor(self):
+        QApplication.setOverrideCursor(Qt.CursorShape.BlankCursor)
 
     @Slot()
     def __on_debug_timeout(self):

@@ -4,14 +4,6 @@ from PySide6.QtGui import QColor, QImage, QPainter, QPixmap
 from slida.transitions.base import Transition
 
 
-class HingeTransition(Transition):
-    no_borders = True
-
-    def on_progress(self, value: float):
-        super().on_progress(value)
-        self.parent().setRotation(value)
-
-
 class ShrinkGrowTransition(Transition):
     property_name = "scale"
 
@@ -56,31 +48,6 @@ class FlashIn(Transition):
 
 class Grow(ShrinkGrowTransition):
     easing = QEasingCurve.Type.OutExpo
-
-
-class HingeIn(HingeTransition):
-    easing = QEasingCurve.Type.OutBack
-    end_value = 0.0
-    parent_z = 1.0
-    start_value = -90.0
-
-    def on_animation_group_start(self):
-        super().on_animation_group_start()
-        self.parent().setTransformOriginPoint(0.0, self.parent().size().height())
-
-
-class HingeOut(HingeTransition):
-    end_value = -90.0
-    start_value = 0.0
-
-    def cleanup(self):
-        super().cleanup()
-        self.parent().setRotation(0.0)
-
-    def on_animation_group_start(self):
-        super().on_animation_group_start()
-        size = self.parent().size()
-        self.parent().setTransformOriginPoint(size.width(), size.height())
 
 
 class Noop(Transition):
