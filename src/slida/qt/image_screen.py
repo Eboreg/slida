@@ -41,7 +41,7 @@ class ImageScreen:
                 qpixmap = QPixmap()
 
                 if not QPixmapCache.find(cache_key, qpixmap):
-                    qpixmap = QPixmap(image.path).scaledToHeight(height)
+                    qpixmap = image.qpixmap.scaledToHeight(height)
                     QPixmapCache.insert(cache_key, qpixmap)
 
                 qpainter.drawPixmap(QPointF(left, 0), qpixmap)
