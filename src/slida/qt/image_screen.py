@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QPointF, QSizeF
+from PySide6.QtCore import QPointF, QRectF, QSizeF
 from PySide6.QtGui import QImage, QPainter, QPixmap, QPixmapCache
 
 from slida.config.base import Config
@@ -12,27 +12,45 @@ if TYPE_CHECKING:
 
 
 class ImageScreen:
+    area: float
+    bounds: QSizeF
+    can_fit_more: bool
+    images: "tuple[ImageFile, ...]"
+    inner_rect: QRectF
+
     __inner_qimage: QImage | None = None
     __outer_qimage: QImage | None = None
+    __size: QSizeF
 
     def __init__(self, bounds: QSizeF, *images: "ImageFile"):
         self.bounds = bounds
         self.images = images
-        self.size = self.__get_size()
-        self.area = self.size.width() * self.size.height()
-        self.bounds_ratio = self.bounds.width() / self.bounds.height() if self.bounds.height() > 0 else 0.0
-        self.images_ratio = self.size.width() / self.size.height() if self.size.height() > 0 else 0.0
-        self.can_fit_more = self.bounds_ratio - self.images_ratio >= 0.4
-        self.inner_rect = get_centered_content_rect(bounds, self.size)
+        self.__size = self.__get_size()
+        self.area = self.__size.width() * self.__size.height()
+        bounds_ratio = self.bounds.width() / self.bounds.height() if self.bounds.height() > 0 else 0.0
+        images_ratio = self.__size.width() / self.__size.height() if self.__size.height() > 0 else 0.0
+        self.can_fit_more = bounds_ratio - images_ratio >= 0.4
+        self.inner_rect = get_centered_content_rect(bounds, self.__size)
 
-    def get_inner_qimage(self):
+    def get_outer_qimage(self) -> QImage:
+        if self.__outer_qimage is None:
+            self.__outer_qimage = QImage(self.bounds.toSize(), QImage.Format.Format_RGB32)
+            self.__outer_qimage.fill(Config.current().background.value)
+            if not self.__size.isEmpty():
+                qpainter = QPainter(self.__outer_qimage)
+                content = self.__get_inner_qimage()
+                qpainter.drawImage(self.inner_rect.topLeft(), content)
+                qpainter.end()
+        return self.__outer_qimage
+
+    def __get_inner_qimage(self) -> QImage:
         if self.__inner_qimage is None:
             config = Config.current()
-            self.__inner_qimage = QImage(self.size.toSize(), QImage.Format.Format_RGB32)
+            self.__inner_qimage = QImage(self.__size.toSize(), QImage.Format.Format_RGB32)
             self.__inner_qimage.fill(config.background.value)
             qpainter = QPainter(self.__inner_qimage)
             left = 0
-            height = self.size.toSize().height()
+            height = self.__size.toSize().height()
 
             for image in self.images:
                 if config.debug.value:
@@ -50,17 +68,6 @@ class ImageScreen:
             qpainter.end()
 
         return self.__inner_qimage
-
-    def get_outer_qimage(self):
-        if self.__outer_qimage is None:
-            self.__outer_qimage = QImage(self.bounds.toSize(), QImage.Format.Format_RGB32)
-            self.__outer_qimage.fill(Config.current().background.value)
-            if not self.size.isEmpty():
-                qpainter = QPainter(self.__outer_qimage)
-                content = self.get_inner_qimage()
-                qpainter.drawImage(self.inner_rect.topLeft(), content)
-                qpainter.end()
-        return self.__outer_qimage
 
     def __get_size(self) -> QSizeF:
         height = self.bounds.height()

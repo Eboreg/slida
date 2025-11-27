@@ -1,6 +1,7 @@
 import dataclasses
 import itertools
 import random
+from typing import Generator
 
 from PySide6.QtCore import QSizeF
 
@@ -25,12 +26,12 @@ class ImageFileManager:
 
     def __init__(self, path: str | list[str]):
         self.__screens = []
-        self.set_path(path)
+        self.__set_path(path)
 
-    def get_image_screen(self, screen_idx: int, bounds: QSizeF):
+    def get_image_screen(self, screen_idx: int, bounds: QSizeF) -> ImageScreen:
         image_screen = ImageScreen(bounds)
 
-        for file_idx, image in self.iter_image_files(screen_idx):
+        for file_idx, image in self.__iter_image_files(screen_idx):
             new_image_screen = ImageScreen(bounds, *image_screen.images, image)
             if new_image_screen.area > image_screen.area:
                 image_screen = new_image_screen
@@ -41,9 +42,26 @@ class ImageFileManager:
         if not image_screen.images:
             raise NoImagesFound()
 
+        # For caching purposes:
+        image_screen.get_outer_qimage()
+
         return image_screen
 
-    def iter_image_files(self, screen_idx: int):
+    def __align_screen_file_indices(self, new_length: int):
+        self.__screens = self.__screens[:new_length]
+        iteration = self.__get_iteration()
+        while len(self.__screens) < new_length:
+            self.__screens.append(Screen(iteration))
+
+    def __get_iteration(self, last_screen_idx: int | None = None) -> int:
+        screens = self.__screens[:last_screen_idx] if last_screen_idx is not None else self.__screens
+        return screens[-1].iteration if screens else 0
+
+    def __get_iteration_used_file_indices(self, iteration: int, last_screen_idx: int) -> list[int]:
+        file_indices = [s.file_indices for s in self.__screens[:last_screen_idx] if s.iteration == iteration]
+        return list(itertools.chain(*file_indices))
+
+    def __iter_image_files(self, screen_idx: int) -> "Generator[tuple[int, ImageFile]]":
         self.__align_screen_file_indices(screen_idx + 1)
         iteration = self.__get_iteration(screen_idx)
         self.__screens[screen_idx] = Screen(iteration)
@@ -56,7 +74,7 @@ class ImageFileManager:
                 if file_idx not in used_indices and self.__image_files[file_idx].is_valid:
                     yield file_idx, self.__image_files[file_idx]
 
-    def set_path(self, path: str | list[str]):
+    def __set_path(self, path: str | list[str]):
         image_files: list[ImageFile] = []
         self.__dir_scanner = DirScanner(path)
         config = Config.current()
@@ -79,17 +97,3 @@ class ImageFileManager:
             self.__image_files = image_files
         if file_order == FileOrder.SIZE:
             self.__image_files = sorted(image_files, key=lambda f: f.stat.st_size, reverse=reverse)
-
-    def __align_screen_file_indices(self, new_length: int):
-        self.__screens = self.__screens[:new_length]
-        iteration = self.__get_iteration()
-        while len(self.__screens) < new_length:
-            self.__screens.append(Screen(iteration))
-
-    def __get_iteration(self, last_screen_idx: int | None = None) -> int:
-        screens = self.__screens[:last_screen_idx] if last_screen_idx is not None else self.__screens
-        return screens[-1].iteration if screens else 0
-
-    def __get_iteration_used_file_indices(self, iteration: int, last_screen_idx: int) -> list[int]:
-        file_indices = [s.file_indices for s in self.__screens[:last_screen_idx] if s.iteration == iteration]
-        return list(itertools.chain(*file_indices))

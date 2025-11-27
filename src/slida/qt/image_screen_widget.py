@@ -39,7 +39,7 @@ class ImageScreenWidget(QGraphicsWidget):
         remove_live_object(id(self))
         super().deleteLater()
 
-    def get_current_filenames(self):
+    def get_current_filenames(self) -> list[str]:
         return [i.path for i in self.__image_screen.images]
 
     def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget: QWidget | None = None):

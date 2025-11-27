@@ -297,7 +297,7 @@ class ApplicationView(QGraphicsView):
     ):
         try:
             self.__image_view.transition_to(self.__history_idx, transition_pair_type, transition_duration)
-        except NoImagesFound as e:
+        except NoImagesFound:
             box = QMessageBox(text="No images were found.", parent=self)
             box.buttonClicked.connect(self.close, Qt.ConnectionType.QueuedConnection)
             box.exec()

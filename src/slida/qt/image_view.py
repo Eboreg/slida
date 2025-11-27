@@ -44,13 +44,13 @@ class ImageView(QGraphicsView):
         super().deleteLater()
         remove_live_object(id(self))
 
-    def get_current_filenames(self):
+    def get_current_filenames(self) -> list[str]:
         if self.__current_widget:
             return self.__current_widget.get_current_filenames()
         return []
 
-    @Slot()
-    def on_transition_finished(self):
+    @Slot(int)
+    def on_transition_finished(self, screen_idx: int):
         old_current = self.__current_widget
         self.__current_widget = self.__next_widget
         self.__is_transitioning = False
@@ -61,6 +61,8 @@ class ImageView(QGraphicsView):
             self.__next_widget = None
 
         self.transition_finished.emit()
+        # Forward caching:
+        self.__image_file_manager.get_image_screen(screen_idx + 1, self.size().toSizeF())
 
     def resizeEvent(self, event):
         viewport_rect = self.viewport().rect()
@@ -117,5 +119,5 @@ class ImageView(QGraphicsView):
 
         self.__is_transitioning = True
 
-        transition_pair.animation_group.finished.connect(self.on_transition_finished)
+        transition_pair.animation_group.finished.connect(lambda: self.on_transition_finished(screen_idx))
         transition_pair.animation_group.start()

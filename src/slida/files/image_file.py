@@ -18,7 +18,7 @@ class ImageFile:
 
     @property
     def is_valid(self) -> bool:
-        self.validate()
+        self.__validate()
         assert self.__is_valid is not None
         return self.__is_valid
 
@@ -34,7 +34,7 @@ class ImageFile:
 
     @property
     def size(self) -> QSize:
-        self.validate()
+        self.__validate()
         assert self.__size is not None
         return self.__size
 
@@ -50,7 +50,7 @@ class ImageFile:
     def scaled_width(self, height: float) -> float:
         return self.size.width() * (height / self.size.height())
 
-    def validate(self):
+    def __validate(self):
         if self.__is_valid is None:
             if Config.current().debug.value:
                 print(f"ImageFile.validate ({self.path})")
