@@ -7,16 +7,16 @@ from slida.files.image_file import ImageFile
 
 
 class DirScanner:
-    is_finished: bool = False
+    __visited_inodes: set[int]
+    __root_paths: list[str]
 
     def __init__(self, root_paths: str | list[str]):
-        self.root_paths = root_paths if isinstance(root_paths, list) else [root_paths]
-        self.visited_inodes: list[int] = []
+        self.__root_paths = root_paths if isinstance(root_paths, list) else [root_paths]
+        self.__visited_inodes = set()
 
     def scandir(self, max_size: int = 0) -> "Generator[ImageFile]":
-        for path in self.root_paths:
+        for path in self.__root_paths:
             yield from self.__scandir(path, is_root=True, max_size=max_size)
-        self.is_finished = True
 
     def __inode(self, entry: os.DirEntry | str):
         if isinstance(entry, os.DirEntry):
@@ -50,8 +50,8 @@ class DirScanner:
         if self.__is_dir(entry):
             if is_root or config.recursive.value:
                 inode = self.__inode(entry)
-                if inode not in self.visited_inodes:
-                    self.visited_inodes.append(inode)
+                if inode not in self.__visited_inodes:
+                    self.__visited_inodes.add(inode)
                     with os.scandir(entry) as dir:
                         for subentry in dir:
                             yield from self.__scandir(subentry, max_size=max_size)
@@ -60,9 +60,9 @@ class DirScanner:
             mimetype = mimetypes.guess_file_type(self.__path(entry))
             if mimetype[0] is not None and mimetype[0].startswith("image/"):
                 inode = self.__inode(entry)
-                if inode not in self.visited_inodes:
+                if inode not in self.__visited_inodes:
                     stat = self.__stat(entry)
-                    self.visited_inodes.append(inode)
+                    self.__visited_inodes.add(inode)
                     if max_size == 0 or stat.st_size <= max_size:
                         yield ImageFile(path=self.__path(entry), stat=stat)
 
