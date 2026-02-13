@@ -23,6 +23,7 @@ def main():
     parser.add_argument("path", default="", nargs="*")
     parser.add_argument("--list-transitions", action="store_true", help="List available transitions and exit")
     parser.add_argument("--print-config", action="store_true", help="Also print debug info about the current config")
+    parser.add_argument("--version", "-V", action="store_true", help="Display version and quit")
 
     Config.current().extend_argument_parser(parser)
     args = parser.parse_args()
@@ -43,6 +44,10 @@ def main():
 
     if args.print_config:
         print(Config.current())
+        sys.exit()
+
+    if args.version:
+        print("Slida v" + __version__)
         sys.exit()
 
     if not args.path:

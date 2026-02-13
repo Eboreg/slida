@@ -37,6 +37,7 @@ from slida.transitions.various import (
     Grow,
     Noop,
     Shrink,
+    TestIn,
 )
 
 
@@ -62,6 +63,7 @@ TRANSITION_PAIRS: list[type[TransitionPair]] = [
     transition_pair_factory("slide-up", SlideInFromBottom, SlideOutToTop),
     transition_pair_factory("top-left-squares", TopLeftSquaresIn, Noop),
     transition_pair_factory("top-squares", TopSquaresIn, Noop),
+    # transition_pair_factory("test", TestIn, Noop),
 ]
 
 TRANSITION_PAIR_MAP: dict[str, type[TransitionPair]] = {

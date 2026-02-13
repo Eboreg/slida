@@ -1,7 +1,10 @@
-from PySide6.QtCore import QEasingCurve, QRectF
-from PySide6.QtGui import QColor, QImage, QPainter, QPixmap
+import copy
 
-from slida.transitions.base import Transition
+from PySide6.QtCore import QEasingCurve, QRectF, Qt
+from PySide6.QtGui import QColor, QImage, QPainter, QPixmap, QTransform
+
+from slida.qt.test_effect import TestEffect
+from slida.transitions.base import EffectTransition, Transition
 
 
 class ShrinkGrowTransition(Transition):
@@ -62,3 +65,25 @@ class Shrink(ShrinkGrowTransition):
     def cleanup(self):
         super().cleanup()
         self.parent().setScale(1.0)
+
+
+class TestIn(EffectTransition[TestEffect]):
+    effect_type = TestEffect
+    parent_z = 1.0
+
+    def on_progress(self, value: float):
+        self.parent().update(self.parent().rect())
+        self.parent().setVisible(True)
+
+    def paint(self, painter: QPainter, image: QImage, image_rect: QRectF):
+        t = QTransform()
+        left_rect = copy.copy(image_rect)
+        left_rect.setRight(image_rect.right() / 2)
+        left = image.copy(left_rect.toRect())
+        print(f"före: TestIn.paint({image_rect}, {left_rect}, {left.rect()})")
+        t.translate(left_rect.width(), left_rect.height() / 2)
+        t.rotate(self._progress * -90.0, Qt.Axis.YAxis)
+        t.translate(0, -left_rect.height() / 2)
+        left = left.transformed(t)
+        print(f"efter: TestIn.paint({image_rect}, {left_rect}, {left.rect()})")
+        painter.drawImage(left.rect(), left)

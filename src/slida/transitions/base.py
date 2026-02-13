@@ -1,4 +1,3 @@
-from abc import abstractmethod
 from typing import Generic, TypeVar
 
 from PySide6.QtCore import (
@@ -54,14 +53,16 @@ class Transition(QObject):
 
     @progress.setter
     def progress(self, value: float):
+        normalized = self.normalize_progress(value)
+
         if value != self._progress:
-            self._progress = value
+            self._progress = normalized
 
             if self.parent_z:
                 self.parent().setVisible(True)
-            self.on_progress(value)
+            self.on_progress(normalized)
             if self.property_name:
-                self.parent().setProperty(self.property_name, value)
+                self.parent().setProperty(self.property_name, normalized)
 
     def cleanup(self):
         self.animation.stateChanged.disconnect(self.__on_animation_state_changed)
@@ -86,6 +87,9 @@ class Transition(QObject):
 
     def get_start_value(self) -> float:
         return self.start_value
+
+    def normalize_progress(self, value: float) -> float:
+        return value
 
     def on_animation_finish(self):
         ...
@@ -136,9 +140,20 @@ class Transition(QObject):
 
 
 class EffectTransition(Transition, Generic[_ET]):
-    @abstractmethod
+    effect_type: type[_ET]
+
+    def create_effect(self, parent: QGraphicsWidget) -> _ET:
+        return self.effect_type(parent)
+
     def get_effect(self) -> _ET:
-        ...
+        parent = self.parent()
+        effect = parent.graphicsEffect()
+
+        if not isinstance(effect, self.effect_type):
+            effect = self.create_effect(parent)
+            parent.setGraphicsEffect(effect)
+
+        return effect
 
     def cleanup(self):
         super().cleanup()

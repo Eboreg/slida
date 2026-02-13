@@ -33,7 +33,6 @@ dev = [
     "ipdb",
     "ipython",
     "isort",
-    "pylint",
 ]
 
 [project.scripts]
@@ -46,32 +45,6 @@ Source = "https://github.com/Eboreg/slida"
 
 [tool.setuptools.dynamic]
 version = {attr = "slida.__version__"}
-
-[tool.pylint.main]
-disable = [
-    "broad-exception-caught",
-    "import-outside-toplevel",
-    "invalid-name",
-    "invalid-str-returned",
-    "missing-class-docstring",
-    "missing-function-docstring",
-    "missing-module-docstring",
-    "too-few-public-methods",
-    "too-many-ancestors",
-    "too-many-arguments",
-    "too-many-branches",
-    "too-many-instance-attributes",
-    "too-many-locals",
-    "too-many-positional-arguments",
-    "too-many-public-methods",
-    "too-many-return-statements",
-    "too-many-statements",
-    "unused-argument",
-]
-extension-pkg-allow-list = ["PySide6.QtWidgets", "PySide6"]
-ignore = [".venv", "node_modules"]
-ignore-patterns = ["^\\.#", ".*\\.pyi", "apps\\.py"]
-max-line-length = 119
 
 [tool.isort]
 combine_as_imports = true

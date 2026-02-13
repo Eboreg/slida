@@ -17,6 +17,8 @@ from slida.transitions.base import EffectTransition
 
 
 class OpacityEffectTransition(EffectTransition[QGraphicsOpacityEffect]):
+    effect_type = QGraphicsOpacityEffect
+
     @abstractmethod
     def create_brush(self, value: float) -> QGradient:
         ...
@@ -24,34 +26,23 @@ class OpacityEffectTransition(EffectTransition[QGraphicsOpacityEffect]):
     def get_bg_pos(self, progress: float) -> float:
         return progress
 
-    def get_effect(self):
-        parent = self.parent()
-        effect = parent.graphicsEffect()
-
-        if not isinstance(effect, QGraphicsOpacityEffect):
-            effect = QGraphicsOpacityEffect(parent)
-            parent.setGraphicsEffect(effect)
-
-        return effect
-
     def get_transparent_pos(self, progress: float) -> float:
         return progress
 
     def on_progress(self, value):
         super().on_progress(value)
         effect = self.get_effect()
+        brush = self.create_brush(value)
+        transparent_pos = self.get_transparent_pos(value)
+        bg_pos = self.get_bg_pos(value)
 
-        if value < 1.0:
-            brush = self.create_brush(value)
-            effect.setEnabled(True)
-            effect.setOpacity(1.0)
-            transparent_pos = coerce_between(self.get_transparent_pos(value), 0.0, 1.0)
-            bg_pos = coerce_between(self.get_bg_pos(value), 0.0, 1.0)
+        effect.setEnabled(True)
+        effect.setOpacity(1.0)
+        if transparent_pos <= 1.0:
             brush.setColorAt(transparent_pos, Qt.GlobalColor.transparent)
+        if bg_pos <= 1.0:
             brush.setColorAt(bg_pos, Config.current().background.value)
-            effect.setOpacityMask(brush)
-        else:
-            effect.setEnabled(False)
+        effect.setOpacityMask(brush)
 
 
 class ExplodeImplodeTransition(OpacityEffectTransition):
@@ -69,6 +60,7 @@ class ExplodeImplodeTransition(OpacityEffectTransition):
 
 class BlindsOut(OpacityEffectTransition):
     easing = QEasingCurve.Type.OutSine
+    end_value = 1.01
 
     def create_brush(self, value):
         brush = QLinearGradient(QPoint(0, 0), QPoint(50, 0))
@@ -78,6 +70,9 @@ class BlindsOut(OpacityEffectTransition):
 
     def get_bg_pos(self, progress):
         return progress + 0.01
+
+    def get_transparent_pos(self, progress: float) -> float:
+        return coerce_between(progress, 0.0, 1.0)
 
 
 class ClockfaceOut(OpacityEffectTransition):
@@ -103,6 +98,7 @@ class ImplodeOut(ExplodeImplodeTransition):
 
 class RadialOut(OpacityEffectTransition):
     easing = QEasingCurve.Type.OutCirc
+    end_value = 1.01
     offset: tuple[float, float] = 0.0, 0.0
 
     def __init__(self, name, parent, duration):
@@ -118,4 +114,7 @@ class RadialOut(OpacityEffectTransition):
         return brush
 
     def get_bg_pos(self, progress):
-        return progress + 0.1
+        return progress + 0.01
+
+    def get_transparent_pos(self, progress: float) -> float:
+        return coerce_between(progress, 0.0, 1.0)

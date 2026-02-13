@@ -3,15 +3,8 @@ from abc import abstractmethod
 from math import ceil, floor
 
 import numpy as np
-from PySide6.QtCore import (
-    QAbstractAnimation,
-    QEasingCurve,
-    QObject,
-    QRect,
-    QRectF,
-    QSequentialAnimationGroup,
-    QSize,
-)
+from klaatu_python.utils import coerce_between
+from PySide6.QtCore import QEasingCurve, QObject, QRect, QRectF, QSize
 from PySide6.QtGui import QImage, QPainter, QPixmap, qRgba
 
 from slida.debug import add_live_object, remove_live_object
@@ -104,7 +97,10 @@ class SubImageTransition(Transition):
 
 
 class RandomSubImageTransition(SubImageTransition):
+    end_value = 1.1
+
     def fill_subs(self, size: QSize, progress: float):
+        progress = coerce_between(progress, 0.0, 1.0)
         subs = self.get_subs_flattened(size)
 
         if progress in (0.0, 1.0):
@@ -150,15 +146,6 @@ class TopLeftSquaresIn(RandomSubImageTransition):
 class TopSquaresIn(RandomSubImageTransition):
     def get_sub_image_weight(self, s: SubImage) -> float:
         return pow(2, (self.rows - s.row - 1) / (self.rows - 1) * 50)
-
-
-class Fucker(SubImageTransition):
-    def create_animation(self, duration: int) -> QAbstractAnimation:
-        group = QSequentialAnimationGroup(self)
-        taken = np.zeros((10, 8), dtype=np.int_)
-        valid_targets = np.append(taken, np.ones((1, 8), dtype=np.int_), axis=0)
-        valid_targets = np.roll(valid_targets, -1, 0)[:10, :]
-        return super().create_animation(duration)
 
 
 class SnakeTransition(Transition):
@@ -298,7 +285,7 @@ class PixelateTransition(Transition):
 
     def paint(self, painter: QPainter, image: QImage, image_rect: QRectF):
         if self.__sub_width and self.__sub_width > 10:
-            for sub, rect in self.get_sub_images(image, min(self.__sub_width, min(image.width(), image.height()))):
+            for sub, rect in self.get_sub_images(image, min(self.__sub_width, image.width(), image.height())):
                 painter.drawPixmap(rect, sub)
         else:
             painter.drawImage(self.parent().rect(), image)
@@ -311,5 +298,5 @@ class PixelateOut(PixelateTransition):
 
 class PixelateIn(PixelateTransition):
     start_value = 1.0
-    end_value = 0.0
+    end_value = -0.1
     easing = QEasingCurve.Type.InSine

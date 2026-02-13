@@ -1,23 +1,18 @@
 from PySide6.QtCore import QEasingCurve
-from PySide6.QtWidgets import QGraphicsBlurEffect
+from PySide6.QtWidgets import QGraphicsBlurEffect, QGraphicsWidget
 
 from slida.transitions.base import EffectTransition
 
 
 class BlurTransition(EffectTransition[QGraphicsBlurEffect]):
+    effect_type = QGraphicsBlurEffect
+
     def cleanup(self):
         super().cleanup()
         self.parent().setOpacity(1.0)
 
-    def get_effect(self):
-        parent = self.parent()
-        effect = parent.graphicsEffect()
-
-        if not isinstance(effect, QGraphicsBlurEffect):
-            effect = QGraphicsBlurEffect(parent, blurHints=QGraphicsBlurEffect.BlurHint.AnimationHint)
-            parent.setGraphicsEffect(effect)
-
-        return effect
+    def create_effect(self, parent: QGraphicsWidget) -> QGraphicsBlurEffect:
+        return QGraphicsBlurEffect(parent, blurHints=QGraphicsBlurEffect.BlurHint.AnimationHint)
 
     def on_progress(self, value: float):
         super().on_progress(value)
@@ -33,7 +28,7 @@ class BlurTransition(EffectTransition[QGraphicsBlurEffect]):
 
 class BlurDecrease(BlurTransition):
     easing = QEasingCurve.Type.InBounce
-    end_value = 0.0
+    end_value = -10.0
     start_value = 100.0
 
 
