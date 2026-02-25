@@ -20,7 +20,7 @@ dependencies = [
     "pyyaml",
 ]
 description = ""
-dynamic = ["version"]
+version = "0.8.0"
 license = "GPL-3.0-only"
 license-files = ["LICENSE"]
 name = "slida"
@@ -42,9 +42,6 @@ slida = "slida.application:main"
 Homepage = "https://github.com/Eboreg/slida"
 Issues = "https://github.com/Eboreg/slida/issues"
 Source = "https://github.com/Eboreg/slida"
-
-[tool.setuptools.dynamic]
-version = {attr = "slida.__version__"}
 
 [tool.isort]
 combine_as_imports = true

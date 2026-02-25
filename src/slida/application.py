@@ -21,6 +21,7 @@ def main():
         parser.error(str(e))
 
     parser.add_argument("path", default="", nargs="*")
+    parser.add_argument("--exclude", nargs="*", help="Files or directories to explicitly exclude from the slideshow")
     parser.add_argument("--list-transitions", action="store_true", help="List available transitions and exit")
     parser.add_argument("--print-config", action="store_true", help="Also print debug info about the current config")
     parser.add_argument("--version", "-V", action="store_true", help="Display version and quit")
@@ -59,7 +60,7 @@ def main():
     app.setApplicationName("Slida v" + __version__)
     app.setQuitOnLastWindowClosed(True)
 
-    slida = ApplicationView(args.path)
+    slida = ApplicationView(args.path, exclude_paths=args.exclude)
     slida.show()
 
     sys.exit(app.exec())

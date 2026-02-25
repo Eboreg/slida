@@ -1,1 +1,4 @@
-__version__ = "0.7.5"
+from importlib.metadata import version
+
+
+__version__ = version("slida")

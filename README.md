@@ -17,9 +17,9 @@ Some nice (?) features:
 
 ```shell
 $ slida --help
-usage: slida [-h] [--list-transitions] [--print-config] [--auto | --no-auto] [--background BACKGROUND] [--debug | --no-debug] [--hidden | --no-hidden] [--interval INTERVAL]
-             [--max-file-size MAX_FILE_SIZE] [--order {name,created,modified,random,size}] [--recursive | --no-recursive] [--reverse | --no-reverse] [--symlinks | --no-symlinks] [--tiling |
-             --no-tiling] [--transition-duration TRANSITION_DURATION] [--transition TRANSITIONS] [--exclude-transition EXCLUDE_TRANSITIONS]
+usage: slida [-h] [--exclude [EXCLUDE ...]] [--list-transitions] [--print-config] [--version] [--auto | --no-auto] [--background BACKGROUND] [--debug | --no-debug] [--hidden | --no-hidden] [--interval INTERVAL] [--max-file-size MAX_FILE_SIZE]
+             [--order {name,created,modified,random,size}] [--recursive | --no-recursive] [--reverse | --no-reverse] [--symlinks | --no-symlinks] [--tiling | --no-tiling] [--transition-duration TRANSITION_DURATION] [--transition TRANSITIONS]
+             [--exclude-transition EXCLUDE_TRANSITIONS]
              [path ...]
 
 positional arguments:
@@ -27,8 +27,11 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
+  --exclude [EXCLUDE ...]
+                        Files or directories to explicitly exclude from the slideshow
   --list-transitions    List available transitions and exit
   --print-config        Also print debug info about the current config
+  --version, -V         Display version and quit
   --auto                Enable auto-advance (default)
   --no-auto             Negates --auto
   --background BACKGROUND
@@ -52,7 +55,7 @@ options:
   --tiling              Tile images horizontally (default)
   --no-tiling           Negates --tiling
   --transition-duration, -td TRANSITION_DURATION
-                        In seconds; 0 = no transitions (default: 0.3)
+                        In seconds; 0 = no transitions (default: 0.7)
   --transition, -t TRANSITIONS
                         Transition to use. Repeat the argument for multiple transitions. Default: use them all
   --exclude-transition, -et EXCLUDE_TRANSITIONS
@@ -62,6 +65,22 @@ options:
 `--transition` and `--exclude-transition` govern which effects will be used for transitioning between images. The full list of transitions is available in `slida.transitions.TRANSITION_PAIRS`. Explicit exclusion overrides explicit inclusion. However, there is one special case: `--transition all` on the command line overrides all other transition settings and simply includes all of them.
 
 Press `?` in the GUI for keyboard mapping info.
+
+### --exclude quirks
+
+The `--exclude` argument will maybe not work as expected when there are symlinks involved. Let's say we do this:
+
+```shell
+$ slida /included --exclude /excluded
+```
+
+If, now:
+
+* `/excluded` is a symlink, pointing to `/included` or one of its descendants: it **will work**.
+* `/excluded` is a concrete file or directory and `/included` is a symlink pointing to it or one of its descendants: it **will work**.
+* `/excluded` is a concrete directory, containing symlinks to `/included` or one of its descendants: it **will NOT work**.
+
+The reason for this is that if we were to check for and expand symlinks for every file and directory in `/included`, it would slow the file indexing down unacceptably.
 
 ## Configuration files
 

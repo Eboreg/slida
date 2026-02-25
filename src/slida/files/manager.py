@@ -20,13 +20,12 @@ class Screen:
 
 
 class ImageFileManager:
-    __dir_scanner: DirScanner
     __image_files: list[ImageFile]
     __screens: list[Screen]
 
-    def __init__(self, path: str | list[str]):
+    def __init__(self, path: str | list[str], exclude_paths: list[str] | None = None):
         self.__screens = []
-        self.__set_path(path)
+        self.__set_path(path, exclude_paths=exclude_paths)
 
     def get_image_screen(self, screen_idx: int, bounds: QSizeF) -> ImageScreen:
         image_screen = ImageScreen(bounds)
@@ -74,15 +73,15 @@ class ImageFileManager:
                 if file_idx not in used_indices and self.__image_files[file_idx].is_valid:
                     yield file_idx, self.__image_files[file_idx]
 
-    def __set_path(self, path: str | list[str]):
+    def __set_path(self, path: str | list[str], exclude_paths: list[str] | None = None):
         image_files: list[ImageFile] = []
-        self.__dir_scanner = DirScanner(path)
+        dir_scanner = DirScanner(path, exclude_paths=exclude_paths)
         config = Config.current()
         reverse = config.reverse.value
         file_order = config.order.value
         max_file_size = config.max_file_size.value
 
-        for file_batch in itertools.batched(self.__dir_scanner.scandir(max_size=max_file_size), n=1000):
+        for file_batch in itertools.batched(dir_scanner.scandir(max_size=max_file_size), n=1000):
             image_files.extend(file_batch)
             print(f"Indexed {len(image_files)} files ...")
 

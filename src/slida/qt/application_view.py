@@ -67,7 +67,7 @@ class ApplicationView(QGraphicsView):
     __toasts: list[Toast]
     __transition_duration: float
 
-    def __init__(self, path: str | list[str]):
+    def __init__(self, path: str | list[str], exclude_paths: list[str] | None = None):
         super().__init__()
 
         config = Config.current()
@@ -78,7 +78,7 @@ class ApplicationView(QGraphicsView):
 
         add_live_object(id(self), self.__class__.__name__)
 
-        self.__image_file_manager = ImageFileManager(path)
+        self.__image_file_manager = ImageFileManager(path, exclude_paths=exclude_paths)
 
         if self.__show_debug_toast:
             self.__debug_toast = self.create_toast(None, True)
